@@ -730,7 +730,7 @@ const App = () => {
                 // await Promise.allSettled(await cacheAllImages());
             }
 
-            setIsCaching(false);
+            // setIsCaching(false);
 
             if (isOverlayLoaded() && !isCaching()) {
                 console.log(
