@@ -37,6 +37,8 @@ const App = () => {
     const intervalMs = 500;
 
     const [isOverlayLoaded, setIsOverlayLoaded] = createSignal(false);
+    const [isCaching, setIsCaching] = createSignal(false);
+    const [loadedAnyway, setLoadedAnyway] = createSignal(false);
 
     const [level, setLevel] = createSignal('2');
     const [plotsPath, setPlotsPath] = createSignal(
@@ -45,7 +47,6 @@ const App = () => {
 
     const [productCode, setProductCode] = createSignal(null);
     const [productType, setProductType] = createSignal('reflectivity');
-    const [isCaching, setIsCaching] = createSignal(false);
 
     const animationSpeeds = [0.5, 1, 1.5, 2, 2.5, 3];
 
@@ -490,26 +491,6 @@ const App = () => {
         return promises;
     };
 
-    const handleIsCaching = async () => {
-        setIsCaching(true);
-
-        let i = 0;
-        let cacheInterval;
-        cacheInterval = setInterval(() => {
-            i++;
-            if (i >= 5 || isCaching() == false) {
-                setIsCaching(false);
-                clearInterval(cacheInterval);
-            }
-            console.log(i);
-        }, 1000);
-
-        // return cacheAllImages();
-        return Promise.all(await cacheAllImages());
-
-        // clearInterval(cacheInterval)
-    };
-
     onMount(async () => {
         const filePrefixes = await generateTimeFilePrefixes();
         const prefix = filePrefixes[filePrefixes.length - 1];
@@ -653,6 +634,25 @@ const App = () => {
         }
     };
 
+    const handleIsCaching = async () => {
+        setIsCaching(true);
+
+        let i = 0;
+        let cacheInterval;
+        cacheInterval = setInterval(() => {
+            i++;
+            if (i >= 3 || !isCaching()) {
+                setIsCaching(false);
+                clearInterval(cacheInterval);
+                updateOverlay();
+                setLoadedAnyway(true);
+            }
+            console.log(i);
+        }, 1000);
+
+        return Promise.all(await cacheAllImages());
+    };
+
     createEffect(() => {
         switch (productType()) {
             case 'reflectivity':
@@ -730,9 +730,7 @@ const App = () => {
                 // await Promise.allSettled(await cacheAllImages());
             }
 
-            // setIsCaching(false);
-
-            if (isOverlayLoaded() && !isCaching()) {
+            if (isOverlayLoaded() && !loadedAnyway()) {
                 console.log(
                     'DEBUG: Inside level 3B createEffect isOverlayLoaded()...'
                 );
@@ -740,6 +738,9 @@ const App = () => {
                 // debouncedUpdateOverlay();
                 // `debouncedUpdateOverlay() level 3 productCode() ${productCode()} createEffect`
             }
+            // setIsCaching(false);
+            setIsCaching(false);
+            setLoadedAnyway(false);
         }
     });
 
