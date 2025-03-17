@@ -10,4 +10,4 @@
 
 [dev]
   functions = "netlify/functions"
-  framework = "#flask" # or the framework you are using, such as #flask or #express
+  framework = "#flask"
