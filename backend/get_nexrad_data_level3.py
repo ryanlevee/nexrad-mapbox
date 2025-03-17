@@ -146,6 +146,12 @@ def download_nexrad_level3_data(
         print(f"File {filename} already exists, skipping.")
         return False
 
+    current_path = os.getcwd()
+    file_path = os.path.join(current_path, DOWNLOAD_FOLDER)
+
+    if not os.path.exists(file_path):
+        os.makedirs(file_path)
+
     download_path = os.path.join(DOWNLOAD_FOLDER, filename)
     print(f"Downloading {filename} to {download_path}")
 

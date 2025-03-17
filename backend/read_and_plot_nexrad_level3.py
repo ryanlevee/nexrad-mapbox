@@ -172,6 +172,9 @@ def read_and_plot_nexrad_level3_data(filename, file_path, product_type, field):
         ax=ax,
     )
 
+    if not os.path.exists(ABSOLUTE_IMAGE_PATH):
+        os.makedirs(ABSOLUTE_IMAGE_PATH)
+
     image_path_full = os.path.join(ABSOLUTE_IMAGE_PATH, save_img_filename)
 
     plt.savefig(
