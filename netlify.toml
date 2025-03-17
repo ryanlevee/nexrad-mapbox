@@ -1,15 +1,12 @@
 [build]
   publish = "dist"
   command = "npm run build"
+  functions = "netlify/functions"
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-
-[build]
-  functions = "netlify/functions"
-  publish = "public" # or the directory where your static files are
 
 [dev]
   functions = "netlify/functions"
