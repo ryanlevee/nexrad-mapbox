@@ -13,6 +13,8 @@ import MouseLatLng from './MouseLatLng';
 import CodeSelect from './CodeSelect';
 import TypeSelect from './TypeSelect';
 import ResetBtn from './ResetBtn';
+import dotenv from 'dotenv'
+dotenv.config()
 
 const App = () => {
     const basePath = '.';
@@ -507,7 +509,8 @@ const App = () => {
         setOverlayData(data);
         generateProductCodes();
 
-        const mapboxAccessToken = process.env.VITE_MAPBOX_ACCESS_TOKEN;
+        const mapboxAccessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+        // const mapboxAccessToken = process.env.VITE_MAPBOX_ACCESS_TOKEN;
         mapboxgl.accessToken = mapboxAccessToken;
 
         mapRef.current = new mapboxgl.Map({

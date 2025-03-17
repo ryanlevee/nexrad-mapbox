@@ -6,7 +6,7 @@ archive*
 *__pycache__*
 script*.py
 __pycache__
-*public/plots_*
+# *plots_*
 nexrad_level2_data
 nexrad_level3_data
 *test*
