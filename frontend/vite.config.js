@@ -6,6 +6,7 @@ export default defineConfig({
     server: {
         port: 3000,
     },
+    root: './frontend',
     build: {
         target: 'esnext',
     },

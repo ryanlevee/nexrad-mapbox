@@ -1,0 +1,13 @@
+{
+    "name": "nexrad-mapbox",
+    "version": "0.0.0",
+    "description": "",
+    "type": "module",
+    "scripts": {
+        "dev:frontend": "cd frontend && npm run dev",
+        "dev": "npm run dev:frontend",
+        "build:frontend": "cd frontend && npm run build",
+        "build": "npm run build:frontend"
+    },
+    "license": "MIT"
+}
