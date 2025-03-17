@@ -490,6 +490,26 @@ const App = () => {
         return promises;
     };
 
+    const handleIsCaching = async () => {
+        setIsCaching(true);
+
+        let i = 0;
+        let cacheInterval;
+        cacheInterval = setInterval(() => {
+            i++;
+            if (i >= 5 || isCaching() == false) {
+                setIsCaching(false);
+                clearInterval(cacheInterval);
+            }
+            console.log(i);
+        }, 1000);
+
+        // return cacheAllImages();
+        await Promise.allSettled(await cacheAllImages());
+
+        // clearInterval(cacheInterval)
+    };
+
     onMount(async () => {
         const filePrefixes = await generateTimeFilePrefixes();
         const prefix = filePrefixes[filePrefixes.length - 1];
@@ -704,9 +724,10 @@ const App = () => {
             useDebounceTimeIndex(setTimeIndex(newFilePrefixes.length - 1));
 
             if (!cachedProducts[productType()][productCode()]) {
-                setIsCaching(true);
+                await handleIsCaching();
+                // setIsCaching(true);
                 // await cacheAllImages();
-                await Promise.allSettled(await cacheAllImages());
+                // await Promise.allSettled(await cacheAllImages());
             }
 
             setIsCaching(false);
