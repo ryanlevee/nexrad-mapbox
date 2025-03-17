@@ -16,11 +16,7 @@ import ResetBtn from './ResetBtn';
 
 let mapboxAccessToken;
 
-if (import.meta.env.__PRODUCTION__ || import.meta.env.MODE != 'development') {
-    mapboxAccessToken = __MAP_TOKEN__;
-} else {
-    import('./config').then(con => (mapboxAccessToken = con.mapboxAccessToken));
-}
+mapboxAccessToken = __MAP_TOKEN__ || import('./config').then(con => (mapboxAccessToken = con.mapboxAccessToken));
 
 const App = () => {
     const basePath = '.';
