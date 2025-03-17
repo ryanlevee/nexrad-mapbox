@@ -18,7 +18,7 @@ let mapboxAccessToken;
 
 if (import.meta.env.PROD) {
     import('dotenv').then(dot => {
-        dot.dotenv.config();
+        dot.config();
         mapboxAccessToken = process.env.VITE_MAPBOX_ACCESS_TOKEN;
     });
 } else {
