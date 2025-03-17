@@ -13,8 +13,6 @@ import MouseLatLng from './MouseLatLng';
 import CodeSelect from './CodeSelect';
 import TypeSelect from './TypeSelect';
 import ResetBtn from './ResetBtn';
-import { debounce, isNull } from 'lodash';
-// import axios from 'axios';
 
 const App = () => {
     const basePath = '.';
@@ -632,9 +630,6 @@ const App = () => {
                     });
             }
         };
-
-    const debouncedUpdateOverlay = debounce(updateOverlay, 10);
-    const debouncedUpdateOverlaySlider = debounce(updateOverlay, 65);
 
     createEffect(() => {
         switch (productType()) {
