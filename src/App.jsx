@@ -505,7 +505,7 @@ const App = () => {
         }, 1000);
 
         // return cacheAllImages();
-        return Promise.allSettled(await cacheAllImages());
+        return await cacheAllImages();
 
         // clearInterval(cacheInterval)
     };
