@@ -22,6 +22,7 @@ RELATIVE_PATH = "./public/"
 ABSOLUTE_IMAGE_PATH = f"{os.path.abspath(RELATIVE_PATH)}/plots_level2/"
 ABSOLUTE_LIST_PATH = f"{os.path.abspath(RELATIVE_PATH)}/lists/"
 LIST_FILE_NAME = "nexrad_level2_reflectivity_files.json"
+DOWNLOAD_FOLDER = "public/nexrad_level2_data"
 
 CHUNK_SIZE = 1024 * 1024 * 2
 
@@ -274,16 +275,13 @@ def process_single_sweep(radar, sweep_num, file_key, product):
         format="png",
         transparent=True,
     )
-
+ 
     plt.close()
 
     print(
         f"Created image, Elevation: {elevation_angle:.2f} degrees, Azimuth: "
         f"{azimuth_angle:.2f} degrees. Saved to {image_path_full}"
     )
-
-
-DOWNLOAD_FOLDER = "nexrad_level2_data"
 
 
 def plot_and_save_overlays(file_key, product):

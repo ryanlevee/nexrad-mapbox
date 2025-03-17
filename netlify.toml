@@ -6,3 +6,11 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+[build]
+  functions = "netlify/functions"
+  publish = "public" # or the directory where your static files are
+
+[dev]
+  functions = "netlify/functions"
+  framework = "#flask" # or the framework you are using, such as #flask or #express
