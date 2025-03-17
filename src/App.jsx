@@ -642,10 +642,10 @@ const App = () => {
         cacheInterval = setInterval(() => {
             i++;
             if (i >= 10 || !isCaching()) {
-                clearInterval(cacheInterval);
                 updateOverlay();
-                setLoadedAnyway(true);
                 setIsCaching(false);
+                setLoadedAnyway(true);
+                clearInterval(cacheInterval);
             }
             console.log(i);
         }, 1000);

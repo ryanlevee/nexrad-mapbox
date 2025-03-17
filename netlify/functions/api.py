@@ -6,7 +6,7 @@ app = Flask(__name__)
 
 @app.route("/.netlify/functions/api")
 def api():
-    return jsonify({"message": "Hello from Netlify functions!"})
+    return "Hello from Netlify functions!"
 
 
 def handler(event, context):
