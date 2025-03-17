@@ -9,7 +9,6 @@ from concurrent.futures import ProcessPoolExecutor
 from datetime import timedelta, timezone
 from time import time
 
-# import aiobotocore.session
 import boto3
 from boto3.s3.transfer import TransferConfig
 from botocore import UNSIGNED
@@ -69,11 +68,10 @@ def generate_file_list_json(plotted_files, products, radar_site):
 
         [filtered_file_list.update({k: v}) for k, v in filtered_product_list.items()]
 
-    # print('filtered_file_list:', filtered_file_list)
+    print('filtered_file_list:', filtered_file_list)
 
     for file in os.listdir(ABSOLUTE_IMAGE_PATH):
         if file[:23] not in filtered_file_list:
-            # if file < min_prefix:
             os.unlink(os.path.join(ABSOLUTE_IMAGE_PATH, file))
 
     print(f"nextrad_leevl3_{product_type}_files.json updated")
@@ -275,7 +273,7 @@ def get_product_codes(product):
 
 
 async def main(loop):
-    minutes = 180
+    minutes = 5
 
     now_utc = datetime.datetime.now(timezone.utc)
     end_time_utc = now_utc

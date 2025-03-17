@@ -3,6 +3,7 @@ import datetime
 import json
 import os
 from concurrent.futures import ProcessPoolExecutor
+from datetime import timedelta
 from time import time
 
 import boto3
@@ -25,47 +26,77 @@ LIST_FILE_NAME = "nexrad_level2_reflectivity_files.json"
 CHUNK_SIZE = 1024 * 1024 * 2
 
 
-def generate_file_list_json(file_list, product_type, debug=False):
-    if debug:
-        base_path = ABSOLUTE_IMAGE_PATH
+def generate_file_list_json(plotted_files, product_type, radar_site):
+    filtered_file_list = {}
+    product_file_list = {}
+    print(f"Generating file list for nexrad_level2_{product_type}_files.json")
+    LIST_FILENAME = f"nexrad_level2_{product_type}_files.json"
+    with open(os.path.join(ABSOLUTE_LIST_PATH, LIST_FILENAME), "r") as f:
+        product_file_list = json.load(f)
+        f.close()
 
-        files = [
-            f
-            for f in file_list or os.listdir(base_path)
-            if f.endswith(".json")
-        ]
+    plotted_file_list = list(plotted_files[product_type].keys())
+    plotted_file_list.sort()
 
-        file_list = [f[:23] for f in files]
-        file_list.sort()
-        file_set = list(set(file_list))
-        files_for_json = file_set
-        files_for_json = {}
+    latest_file_datetime = plotted_file_list[-1][4:19].replace("_", " ")
+    format_string = "%Y%m%d %H%M%S"
+    datetime_object = datetime.datetime.strptime(latest_file_datetime, format_string)
+    three_hours_ago = datetime_object - timedelta(minutes=180)
 
-        for file in file_set:
-            files_for_json[file] = {"sweeps": file_list.count(file)}
-    else:
-        files_for_json = file_list
+    min_file_datetime = (
+        str(three_hours_ago).replace("-", "").replace(":", "").replace(" ", "_")
+    )
 
-    current_json = {}
-    try:
-        with open(
-            os.path.join(
-                ABSOLUTE_LIST_PATH, f"nexrad_level2_{product_type}_files.json"
-            ),
-            "r",
-        ) as f:
-            current_json = json.load(f)
-    except FileNotFoundError:
-        current_json = {}
-    current_json.update(files_for_json)
+    min_prefix = f"{radar_site}{min_file_datetime}"  # do NOT add "K" for level2
 
-    with open(
-        os.path.join(
-            ABSOLUTE_LIST_PATH, f"nexrad_level2_{product_type}_files.json"
-        ),
-        "w+",
-    ) as g:
-        json.dump(current_json, g)
+    filtered_product_list = {
+        k: v for k, v in product_file_list.items() if k >= min_prefix
+    }
+
+    filtered_product_list.update(plotted_files)
+
+    # indiv_filenames = list(set(plotted_file_list))
+
+    # for fn in indiv_filenames:
+    #     if fn >= min_prefix:
+    #         filtered_product_list.update({fn: {"sweeps": plotted_file_list.count(fn)}})
+
+    with open(os.path.join(ABSOLUTE_LIST_PATH, LIST_FILENAME), "w+") as g:
+        json.dump(filtered_product_list, g)
+        g.close()
+
+    [filtered_file_list.update({k: v}) for k, v in filtered_product_list.items()]
+
+    print(f"nexrad_level2_{product_type}_files.json updated")
+
+    print(f"Removing old {product_type} pngs and jsons in {ABSOLUTE_IMAGE_PATH}")
+
+    for file in os.listdir(ABSOLUTE_IMAGE_PATH):
+        if file[:23] not in filtered_file_list:
+            os.unlink(os.path.join(ABSOLUTE_IMAGE_PATH, file))
+
+    # files_for_json = file_list
+
+    # current_json = {}
+    # try:
+    #     with open(
+    #         os.path.join(
+    #             ABSOLUTE_LIST_PATH, f"nexrad_level2_{product_type}_files.json"
+    #         ),
+    #         "r",
+    #     ) as f:
+    #         current_json = json.load(f)
+    # except FileNotFoundError:
+    #     current_json = {}
+    # current_json.update(files_for_json)
+
+    # with open(
+    #     os.path.join(
+    #         ABSOLUTE_LIST_PATH, f"nexrad_level2_{product_type}_files.json"
+    #     ),
+    #     "w+",
+    # ) as g:
+    #     json.dump(current_json, g)
 
 
 def calculate_file_index(radar, sweep_num):
@@ -111,9 +142,7 @@ def generate_colorbar(ax, product_name, file_base):
     ax_colorbar.yaxis.label.set_verticalalignment("bottom")
 
     colorbar_image_name = f"{file_base}_{product_name}_colorbar.png"
-    colorbar_image_path_full = os.path.join(
-        ABSOLUTE_IMAGE_PATH, colorbar_image_name
-    )
+    colorbar_image_path_full = os.path.join(ABSOLUTE_IMAGE_PATH, colorbar_image_name)
 
     fig_colorbar.savefig(
         colorbar_image_path_full,
@@ -254,23 +283,29 @@ def process_single_sweep(radar, sweep_num, file_key, product):
     )
 
 
+DOWNLOAD_FOLDER = "nexrad_level2_data"
+
+
 def plot_and_save_overlays(file_key, product):
     file_prefix = file_key.split("/")[-1]
 
+    file_path = os.path.join(DOWNLOAD_FOLDER, file_prefix)
+
     try:
-        radar = pyart.io.read(f"temp_file_{file_prefix}")
+        radar = pyart.io.read(file_path)
         num_sweeps = radar.nsweeps
 
         for sweep_num in range(num_sweeps):
             process_single_sweep(radar, sweep_num, file_key, product)
 
-        os.remove(f"temp_file_{file_prefix}")
+        os.remove(file_path)
+        # return file_prefix
         return {"file": file_prefix, "sweeps": num_sweeps}
 
     except Exception as e:
         print(f"Error processing {file_key}: {e}")
-        if os.path.exists(f"temp_file_{file_prefix}"):
-            os.remove(f"temp_file_{file_prefix}")
+        if os.path.exists(file_path):
+            os.remove(file_path)
         return {"file": file_prefix, "sweeps": 0}
 
 
@@ -278,24 +313,37 @@ TRANSFER_CONFIG = TransferConfig(max_concurrency=50)
 CONFIG = Config(signature_version=UNSIGNED, s3={"transfer_config": TRANSFER_CONFIG})
 SESSION = boto3.session.Session()
 S3_CLIENT = SESSION.client("s3", config=CONFIG, region_name="us-east-1")
-# DOWNLOAD_FOLDER = "nexrad_level2_data"
+
 
 def get_data_and_create_radar_file(file_key, bucket_name):
     """Downloads and processes all sweeps of a single radar file."""
-    # transfer_config = TransferConfig(max_concurrency=20)
-    # config = Config(
-    #     signature_version=UNSIGNED, s3={"transfer_config": TRANSFER_CONFIG}
-    # )
 
-    # session = boto3.session.Session()
-    bucket_name = "noaa-nexrad-level2"
-    # s3_client = session.client("s3", config=CONFIG, region_name="us-east-1")
-    response = S3_CLIENT.get_object(Bucket=bucket_name, Key=file_key)
-    content = response["Body"].read()
+    current_path = os.getcwd()
+    file_path = os.path.join(current_path, DOWNLOAD_FOLDER)
     file_prefix = file_key.split("/")[-1]
 
-    with open(f"temp_file_{file_prefix}", "wb") as f:
+    download_path = os.path.join(file_path, file_prefix)
+    print(f"Downloading {file_prefix} to {download_path}")
+
+    if not os.path.exists(file_path):
+        os.makedirs(file_path)
+
+    bucket_name = "noaa-nexrad-level2"
+    response = S3_CLIENT.get_object(Bucket=bucket_name, Key=file_key)
+    parts = []
+    body = response["Body"]
+
+    while data := body.read(CHUNK_SIZE):
+        parts.append(data)
+
+    content = b"".join(parts)
+
+    with open(download_path, "wb") as f:
         f.write(content)
+
+    print(f"Downloaded {file_key} successfully.")
+
+    return file_key
 
 
 def check_for_files(radar_site, minutes):
@@ -304,9 +352,7 @@ def check_for_files(radar_site, minutes):
     start_date = three_hours_ago.date()
     end_date = now_utc.date()
 
-    s3_resource = boto3.resource(
-        "s3", config=Config(signature_version=UNSIGNED)
-    )
+    s3_resource = boto3.resource("s3", config=Config(signature_version=UNSIGNED))
     bucket = s3_resource.Bucket("noaa-nexrad-level2")
 
     files_to_process = []
@@ -324,9 +370,7 @@ def check_for_files(radar_site, minutes):
             if file_key.endswith("V06") and not file_key.endswith("_MDM"):
                 try:
                     filename_parts = file_key.split("/")[-1].split("_")
-                    timestamp_str = (
-                        filename_parts[0][4:] + "_" + filename_parts[1]
-                    )
+                    timestamp_str = filename_parts[0][4:] + "_" + filename_parts[1]
                     file_datetime_utc = datetime.datetime.strptime(
                         timestamp_str, "%Y%m%d_%H%M%S"
                     ).replace(tzinfo=datetime.timezone.utc)
@@ -352,7 +396,7 @@ def check_for_files(radar_site, minutes):
 async def main(loop):
     radar_site = "KPDT"
     product_type = "reflectivity"
-    minutes = 180
+    minutes = 120
 
     files_to_process = check_for_files(radar_site, minutes)
     print(f"\nFiles to process (last {minutes} minutes): {files_to_process}")
@@ -369,32 +413,47 @@ async def main(loop):
         for file_key in files_to_process
         if file_key.split("/")[-1] not in existing_files
     ]
-    print(f"Filtered files to process (excluding existing): {filtered_files}")
+    print(f"Filtered files to process: {filtered_files}")
 
+    plotted_files = {}
     if filtered_files:
         bucket_name = "noaa-nexrad-level2"
 
         executor = ProcessPoolExecutor()
-        content = await asyncio.gather(
+        downloaded_files = await asyncio.gather(
             *(
                 loop.run_in_executor(
                     executor,
                     get_data_and_create_radar_file,
-                    file, bucket_name,
+                    file,
+                    bucket_name,
                 )
                 for file in filtered_files
-            ),
+            )
+        )
+
+        if not downloaded_files:
+            print("PROBLEM - no dl-ed files")
+            return False
+
+        plotted_file_results = await asyncio.gather(
             *(
                 loop.run_in_executor(
                     executor,
                     plot_and_save_overlays,
-                    file, product_type,
+                    file,
+                    product_type,
                 )
                 for file in filtered_files
             ),
         )
 
-        generate_file_list_json([], product_type, debug=True)
+        plotted_files[product_type] = {
+            item["file"]: {"sweeps": item["sweeps"]} for item in plotted_file_results
+        }
+
+        if plotted_files[product_type]:
+            generate_file_list_json(plotted_files, product_type, radar_site)
     else:
         print("No new files to process.")
 

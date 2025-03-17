@@ -4,7 +4,6 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pyart
-
 from pyart.core import transforms
 
 RELATIVE_PATH = "./frontend/public/"
@@ -38,9 +37,7 @@ def generate_colorbar(ax, product_name, file_base):
     ax_colorbar.yaxis.label.set_verticalalignment("bottom")
 
     colorbar_image_name = f"{file_base}_{product_name}_colorbar.png"
-    colorbar_image_path_full = os.path.join(
-        ABSOLUTE_IMAGE_PATH, colorbar_image_name
-    )
+    colorbar_image_path_full = os.path.join(ABSOLUTE_IMAGE_PATH, colorbar_image_name)
 
     fig_colorbar.savefig(
         colorbar_image_path_full,
@@ -62,9 +59,7 @@ def read_and_plot_nexrad_level3_data(filename, file_path, product_type, field):
     file_index = 0
 
     img_ext = ".png"
-    save_img_filename = (
-        f"{normalized_filename}_{product_type}_idx{file_index}{img_ext}"
-    )
+    save_img_filename = f"{normalized_filename}_{product_type}_idx{file_index}{img_ext}"
     json_ext = ".json"
     save_json_filename = (
         f"{normalized_filename}_{product_type}_idx{file_index}{json_ext}"
@@ -194,6 +189,7 @@ def read_and_plot_nexrad_level3_data(filename, file_path, product_type, field):
     return normalized_filename
 
     # return {normalized_filename: {"sweeps": 1}}
+
 
 # current_path = os.getcwd()
 # file_path = os.path.join(current_path, f"nexrad_level3_data")
