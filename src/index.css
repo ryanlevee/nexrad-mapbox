@@ -457,6 +457,17 @@ input::-webkit-slider-thumb {
     transform: rotate(90deg);
 }
 
+#update-alert-container {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 2vw;
+    transform: translate(48vw, -2vh);
+}
+
+#update-alert-text {
+    font-size: 1.25rem;
+}
 #loading-overlay,
 #updating-overlay {
     position: absolute;

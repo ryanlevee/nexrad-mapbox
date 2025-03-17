@@ -1,0 +1,8 @@
+{
+    "updated": 1,
+    "updates": {
+        "reflectivity": {"KPDT20250317_035712_V06": {"sweeps": 1}},
+        "hydrometeor": null,
+        "precipitation": null
+    }
+}

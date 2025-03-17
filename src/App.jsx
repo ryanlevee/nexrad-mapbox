@@ -1,3 +1,4 @@
+// import fs from 'fs';
 import {
     onMount,
     createSignal,
@@ -13,6 +14,7 @@ import MouseLatLng from './MouseLatLng';
 import CodeSelect from './CodeSelect';
 import TypeSelect from './TypeSelect';
 import ResetBtn from './ResetBtn';
+import UpdateAlert from './UpdateAlert';
 
 const App = () => {
     const basePath = '.';
@@ -290,19 +292,89 @@ const App = () => {
         // 'debouncedSetupOverlay() skip to last btn'
     };
 
-    const generateTimeFilePrefixes = async () => {
-        let allFilesData = false;
+    // const apiEndpoint = 'https://abcdef123.execute-api.us-east-1.amazonaws.com/prod/check-updates'; // example
+    // const apiEndpoint = `${listsPath}/updated_data.json`;
+    const apiEndpointTest = 'http://localhost:4000';
 
-        try {
-            const response = await fetch(
-                `/${listsPath}/nexrad_level${level()}_${productType()}_files.json`
+    const generateTimeFilePrefixesInit = async () => {
+        let allFilesData = [];
+
+        const response = await fetch(`${apiEndpointTest}/list-all/`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        allFilesData = await response.json();
+
+        if (!allFilesData) return false; // needs to throw error
+
+        let selectFilesData;
+
+        if (level() == '2') {
+            selectFilesData = allFilesData;
+        } else if (level() == '3') {
+            selectFilesData = Object.entries(allFilesData).reduce(
+                (acc, [key, value]) => {
+                    const fnParts = key.split('_');
+                    if (fnParts[fnParts.length - 1] == productCode())
+                        acc[key] = value;
+                    return acc;
+                },
+                {}
             );
-            allFilesData = await response.json();
-        } catch (error) {
-            console.error('Error fetching file list:', error);
         }
 
-        if (!allFilesData) return false;
+        const sortedFilesData = Object.keys(selectFilesData)
+            .sort()
+            .reduce((obj, key) => {
+                obj[key] = selectFilesData[key];
+                return obj;
+            }, {});
+
+        setFilesData(sortedFilesData);
+        const fileNames = Object.keys(sortedFilesData);
+
+        if (!fileNames || fileNames.length === 0) {
+            setTimeFilePrefixes([]);
+            return;
+        }
+
+        const filteredPrefixes = fileNames.reduce((acc, fileName) => {
+            const prefix = fileName.replace('.png', '');
+            acc.push(prefix);
+            return acc;
+        }, []);
+
+        setTimeFilePrefixes(filteredPrefixes);
+        return filteredPrefixes;
+    };
+
+    const generateTimeFilePrefixes = async (update = false, init = false) => {
+        let allFilesData = [];
+
+        if (init) {
+            const response = await fetch(`${apiEndpointTest}/list-all/`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+            allFilesData = await response.json();
+        } else if (update) {
+            // `/${listsPath}/nexrad_level${level()}_${productType()}_files.json`
+            const response = await fetch(`${apiEndpointTest}/list/`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+            allFilesData = await response.json();
+        } else {
+            allFilesData = filesData();
+        }
+
+        if (!allFilesData) return false; // needs to throw error
 
         let selectFilesData;
 
@@ -491,8 +563,106 @@ const App = () => {
         return promises;
     };
 
+    const [isUpToDate, setIsUpToDate] = createSignal(true);
+
+    const cacheUpdatedImages = updates => {
+        Object.entries(updates).forEach(([key, value]) => {
+            if (value) {
+                // console.log(`${key}:${value}`)
+                // timeFilePrefixes().push()
+                console.log(filesData());
+            }
+        });
+    };
+
+    ////////////////// API TESTING //////////////////
+
+    const handleUpdates = async updateData => {
+        const response = await fetch(`${apiEndpointTest}/list/`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        let updatedList = await response.json();
+
+        // Object.entries(updateData).forEach(([key, value]) => {
+        generateTimeFilePrefixes(true);
+        // timeFilePrefixes().push(key);
+        // filesData()[key] = value;
+        // });
+
+        console.log(timeFilePrefixes());
+        console.log(filesData());
+        return true;
+    };
+
+    const checkUpdates = async () => {
+        console.log('Checking for updates...');
+        const response = await fetch(`${apiEndpointTest}/flag/`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        }); // my AWS API endpoint
+
+        let data = await response.json();
+
+        if (typeof data === 'string') {
+            try {
+                data = JSON.parse(data); // Parse again if it's a string
+            } catch (parseError) {
+                console.error('Error parsing JSON string:', parseError);
+                return; // Exit the function if parsing fails
+            }
+        }
+
+        console.log(data);
+
+        let updateComplete = false;
+
+        if (data.updated) {
+            const updates = data.updates;
+            const updatedProduct = updates[productType()];
+
+            if (updatedProduct) {
+                setIsUpToDate(false);
+                updateComplete = handleUpdates(updatedProduct);
+                data.updates[productType()] = 0;
+            }
+        }
+
+        setIsUpToDate(true);
+
+        if (!updateComplete) {
+            return false;
+        }
+
+        //// mimic sending POST request to API:
+        data.updated = 0;
+
+        try {
+            const r = await fetch(`${apiEndpointTest}/flag/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data),
+            });
+
+            console.log(data);
+
+            const responseBody = await r.json();
+            console.log(responseBody);
+        } catch (error) {
+            console.error('Error checking updates:', error);
+        }
+    };
+    /////////////////////////////////////////////////
+
     onMount(async () => {
-        const filePrefixes = await generateTimeFilePrefixes();
+        const filePrefixes = await generateTimeFilePrefixes(false, true);
         const prefix = filePrefixes[filePrefixes.length - 1];
 
         findMaxTiltIndex(prefix);
@@ -505,11 +675,16 @@ const App = () => {
         const initFilename = `${filePrefix()}_${productType()}_idx0`;
         const initImgPath = `/${plotsPath()}/${initFilename}${imgExt}`;
         const initJsonPath = `/${plotsPath()}/${initFilename}.json`;
+        console.log(initJsonPath);
+
         const initResponse = await fetch(initJsonPath);
         const data = await initResponse.json();
 
         setOverlayData(data);
         generateProductCodes();
+
+        // checkUpdates(); // Initial check
+        setInterval(checkUpdates, 10000); // Check every 2 minutes (120000 ms)
 
         const mapboxAccessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
         mapboxgl.accessToken = mapboxAccessToken;
@@ -536,7 +711,7 @@ const App = () => {
                     // testCoords.se,
                     // testCoords.sw,
                 ],
-                tileSize: 256,
+                // tileSize: 256,  // "unknown property" apparently
             });
 
             mapRef.current.addLayer({
@@ -829,10 +1004,10 @@ const App = () => {
         const timeSliderTicks = document.getElementById('time-slider-ticks');
 
         if (
+            isUpToDate() &&
             isOverlayLoaded() &&
             timeSlider &&
             timeSliderTicks
-            // && isCaching()
         ) {
             console.log('DEBUG:: inside timeSlider create ticks');
 
@@ -896,6 +1071,8 @@ const App = () => {
 
             {isOverlayLoaded() && (
                 <>
+                    {!isUpToDate() && <UpdateAlert />}
+
                     <ResetBtn map={mapRef.current} mapOrigin={mapOrigin} />
 
                     <MouseLatLng moveEvent={moveEvent} />
