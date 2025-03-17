@@ -12,3 +12,5 @@ nexrad_level3_data
 *test*
 *_BU*
 .vscode
+.env.local
+*.env
