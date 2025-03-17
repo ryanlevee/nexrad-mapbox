@@ -14,3 +14,4 @@ nexrad_level3_data
 .vscode
 .env.local
 *.env
+config.js

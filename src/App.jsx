@@ -13,8 +13,16 @@ import MouseLatLng from './MouseLatLng';
 import CodeSelect from './CodeSelect';
 import TypeSelect from './TypeSelect';
 import ResetBtn from './ResetBtn';
-import dotenv from 'dotenv'
-dotenv.config()
+
+let mapboxAccessToken
+
+if (import.meta.env.PROD) {
+    import('dotenv')
+    dotenv.dotenv.config()
+    mapboxAccessToken = process.env.VITE_MAPBOX_ACCESS_TOKEN 
+} else {
+    import('./config').then(con => mapboxAccessToken = con.mapboxAccessToken)
+}
 
 const App = () => {
     const basePath = '.';
@@ -397,7 +405,7 @@ const App = () => {
             //     fileTime >= threeHoursBeforeLatest &&
             //     fileTime <= latestFileTime
             // ) {
-                acc.push(prefix);
+            acc.push(prefix);
             // }
             return acc;
         }, []);
@@ -479,10 +487,9 @@ const App = () => {
         const prefixes = timeFilePrefixes();
 
         for (let prefix of prefixes) {
-            const maxIdx = filesData()[prefix].sweeps - 1
+            const maxIdx = filesData()[prefix].sweeps - 1;
 
             for (let iTilt = 0; iTilt <= maxIdx; iTilt++) {
-
                 const imageKey = `${prefix}_${productType()}_idx${iTilt}`;
                 cacheImage(imageKey);
             }
@@ -509,7 +516,7 @@ const App = () => {
         setOverlayData(data);
         generateProductCodes();
 
-        const mapboxAccessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+        // const mapboxAccessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
         // const mapboxAccessToken = process.env.VITE_MAPBOX_ACCESS_TOKEN;
         mapboxgl.accessToken = mapboxAccessToken;
 
