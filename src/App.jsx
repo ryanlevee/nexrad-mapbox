@@ -395,7 +395,7 @@ const App = () => {
             //     fileTime >= threeHoursBeforeLatest &&
             //     fileTime <= latestFileTime
             // ) {
-                acc.push(prefix);
+            acc.push(prefix);
             // }
             return acc;
         }, []);
@@ -477,10 +477,9 @@ const App = () => {
         const prefixes = timeFilePrefixes();
 
         for (let prefix of prefixes) {
-            const maxIdx = filesData()[prefix].sweeps - 1
+            const maxIdx = filesData()[prefix].sweeps - 1;
 
             for (let iTilt = 0; iTilt <= maxIdx; iTilt++) {
-
                 const imageKey = `${prefix}_${productType()}_idx${iTilt}`;
                 cacheImage(imageKey);
             }
@@ -507,7 +506,7 @@ const App = () => {
         setOverlayData(data);
         generateProductCodes();
 
-        const mapboxAccessToken = process.env.MAP_TOKEN;
+        const mapboxAccessToken = import.meta.env.MAP_TOKEN;
         mapboxgl.accessToken = mapboxAccessToken;
 
         mapRef.current = new mapboxgl.Map({
