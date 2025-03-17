@@ -1,17 +1,22 @@
-import shutil
 import asyncio
 import datetime
 import json
 import os
 import re
-from datetime import timedelta, timezone
+import shutil
 import sys
-from time import time
 from concurrent.futures import ProcessPoolExecutor
+from datetime import timedelta, timezone
+from time import time
 
-import aiobotocore.session
+# import aiobotocore.session
+import boto3
+from boto3.s3.transfer import TransferConfig
+from botocore import UNSIGNED
+from botocore.client import Config
 from pytz import UTC
 from read_and_plot_nexrad_level3 import read_and_plot_nexrad_level3_data
+from utils import Utl
 
 RELATIVE_PATH = "./frontend/public/"
 ABSOLUTE_CODES_PATH = f"{os.path.abspath(RELATIVE_PATH)}/codes/options.json"
@@ -21,231 +26,212 @@ ABSOLUTE_LIST_PATH = f"{os.path.abspath(RELATIVE_PATH)}/lists/"
 CHUNK_SIZE = 1024 * 1024 * 2
 
 
-def generate_file_list_json(file_list, product_type, debug=False):
-    # # files_json = {}
-    # # with open(
-    # #     os.path.join(
-    # #         ABSOLUTE_LIST_PATH, f"nexrad_level3_{product_type}_files.json"
-    # #     )
-    # # ) as f:
-    # #     files_json = json.load(f)
+def generate_file_list_json(plotted_files, products, radar_site):
+    filtered_file_list = {}
 
-    # # files_for_json = list(files_json.keys())
+    for product in products:
+        product_file_list = {}
+        product_type = product["type"]
+        print(f"Generating file list for nexrad_level3_{product_type}_files.json")
+        LIST_FILENAME = f"nexrad_level3_{product_type}_files.json"
+        with open(os.path.join(ABSOLUTE_LIST_PATH, LIST_FILENAME), "r") as f:
+            product_file_list = json.load(f)
+            f.close()
 
-    # # current_json = {}
-    # # with open(
-    # #     os.path.join(
-    # #         ABSOLUTE_LIST_PATH, f"nexrad_level3_{product_type}_files.json"
-    # #     ),
-    # #     "r",
-    # # ) as f:
-    # #     current_json = json.load(f)
-    # #     f.close()
+        plotted_product_files = plotted_files[product_type]
+        plotted_product_files.sort()
+        latest_file_datetime = plotted_product_files[-1][4:19].replace("_", " ")
+        format_string = "%Y%m%d %H%M%S"
+        datetime_object = datetime.datetime.strptime(
+            latest_file_datetime, format_string
+        )
+        three_hours_ago = datetime_object - timedelta(minutes=180)
 
-    # # [current_json.update({file: {"sweeps": "1"}}) for file in files_for_json]
+        min_file_datetime = (
+            str(three_hours_ago).replace("-", "").replace(":", "").replace(" ", "_")
+        )
 
-    # with open(
-    #     os.path.join(
-    #         ABSOLUTE_LIST_PATH, f"nexrad_level3_{product_type}_files.json"
-    #     ),
-    #     "w+",
-    # ) as g:
-    #     json.dump(file_list, g)
-    #     # json.dump(current_json, g)
+        min_prefix = f"K{radar_site}{min_file_datetime}"  # add "K" for level3
 
-    # code_options = {}
+        filtered_product_list = {
+            k: v for k, v in product_file_list.items() if k >= min_prefix
+        }
 
-    # with open(
-    #     ABSOLUTE_CODES_PATH,
-    #     "r",
-    # ) as h:
-    #     code_options = json.load(h)
-    #     h.close()
+        for file in plotted_product_files:
+            if file >= min_prefix:
+                filtered_product_list.update({file: {"sweeps": 1}})
 
-    # product_codes = code_options[product_type]
-    # # jcodes = [jk[-3:] for jk in files_for_json]
-    # jcodes = [jk[-3:] for jk in file_list]
+        print(f"Removing old {product_type} pngs and jsons in {ABSOLUTE_IMAGE_PATH}")
 
-    # for i, codes in enumerate(product_codes):
-    #     code = codes["value"]
-    #     product_codes[i]["count"] = jcodes.count(code)
-
-    # code_options[product_type] = product_codes
-
-    # with open(
-    #     ABSOLUTE_CODES_PATH,
-    #     "w+",
-    # ) as j:
-    #     json.dump(code_options, j)
-    base_path = ABSOLUTE_IMAGE_PATH
-    files = [
-        f
-        for f in os.listdir(base_path)
-        if f.endswith(f"{product_type}_idx0.json")
-    ]
-    file_list = [f[:23] for f in files]
-    file_list.sort()
-    file_set = list(set(file_list))
-    files_for_json = file_set
-    files_for_json = {}
-
-    print(file_set)
-
-    for file in file_set:
-        files_for_json[file] = {"sweeps": file_list.count(file)}
-
-        with open(
-            os.path.join(
-                ABSOLUTE_LIST_PATH, f"nexrad_level3_{product_type}_files.json"
-            ),
-            "w+",
-        ) as g:
-            json.dump(files_for_json, g)
+        with open(os.path.join(ABSOLUTE_LIST_PATH, LIST_FILENAME), "w+") as g:
+            json.dump(filtered_product_list, g)
             g.close()
 
-        code_options = {}
+        [filtered_file_list.update({k: v}) for k, v in filtered_product_list.items()]
 
-        with open(
-            ABSOLUTE_CODES_PATH,
-            "r",
-        ) as h:
-            code_options = json.load(h)
-            h.close()
+    # print('filtered_file_list:', filtered_file_list)
+
+    for file in os.listdir(ABSOLUTE_IMAGE_PATH):
+        if file[:23] not in filtered_file_list:
+            # if file < min_prefix:
+            os.unlink(os.path.join(ABSOLUTE_IMAGE_PATH, file))
+
+    print(f"nextrad_leevl3_{product_type}_files.json updated")
+
+    code_options = {}
+    with open(
+        ABSOLUTE_CODES_PATH,
+        "r",
+    ) as h:
+        code_options = json.load(h)
+        h.close()
+
+    for product in products:
+        product_type = product["type"]
+        print(f"Generating {product_type} code options for options.json")
 
         product_codes = code_options[product_type]
-        # jcodes = [jk[-3:] for jk in files_for_json]
-        jcodes = [jk[-3:] for jk in file_list]
+        jcodes = [jk[-3:] for jk in filtered_file_list]
 
         for i, codes in enumerate(product_codes):
             code = codes["value"]
             product_codes[i]["count"] = jcodes.count(code)
 
         code_options[product_type] = product_codes
+        print(f"updating options.json for {product_type}")
 
-        with open(
-            ABSOLUTE_CODES_PATH,
-            "w+",
-        ) as j:
-            json.dump(code_options, j)
-            j.close()
+    with open(
+        ABSOLUTE_CODES_PATH,
+        "w+",
+    ) as j:
+        json.dump(code_options, j)
+        j.close()
 
 
-async def download_nexrad_level3_data(
-    file_list,
-    product,
+TRANSFER_CONFIG = TransferConfig(max_concurrency=50)
+CONFIG = Config(signature_version=UNSIGNED, s3={"transfer_config": TRANSFER_CONFIG})
+SESSION = boto3.session.Session()
+S3_CLIENT = SESSION.client("s3", config=CONFIG, region_name="us-east-1")
+DOWNLOAD_FOLDER = "nexrad_level3_data"
+
+
+def download_nexrad_level3_data(
+    # config,
+    # files,
+    filename,
+    existing_files,
+    # product,
     bucket_name="unidata-nexrad-level3",
-    download_dir="nexrad_level3_data",
+    # parent_download_dir="nexrad_level3_data",
 ):
-    session = aiobotocore.session.get_session()
-    async with session.create_client("s3") as s3:
-        if not os.path.exists(download_dir):
-            os.makedirs(download_dir)
+    # download_dir = os.path.join(parent_download_dir, product_type)
 
-        LIST_FILE_NAME = f"nexrad_level3_{product['type']}_files.json"
+    # session = aiobotocore.session.get_session()
+    # async with session.create_client("s3") as s3_client:
+    # if not os.path.exists(download_dir):
+    #     os.makedirs(download_dir)
 
-        existing_files = {}
-        with open(os.path.join(ABSOLUTE_LIST_PATH, LIST_FILE_NAME), "r") as f:
-            existing_files = json.load(f)
+    # existing_files = os.listdir(download_dir)
 
-        # existing_files = os.listdir(download_dir)
+    # downloaded_files = []
+    # for filename in files:
+    fns = filename.split("_")
 
-        downloaded_files_gen = []
-        for filename in file_list:
-            fns = filename.split("_")
+    normalized_filename = (
+        f"K{''.join([fns[0], *fns[2:5]])}_{''.join(fns[5:8])}_{fns[1]}"
+    )
 
-            normalized_filename = (
-                f"K{''.join([fns[0], *fns[2:5]])}_{''.join(fns[5:8])}_{fns[1]}"
-            )
+    fn = filename.replace("_", "")
+    normalized_filename = f"K{fn[:-6]}_{fn[-6:]}"
 
-            fn = filename.replace("_", "")
-            normalized_filename = f"K{fn[:-6]}_{fn[-6:]}"
+    if normalized_filename in existing_files:
+        print(f"File {filename} already exists, skipping.")
+        return False
 
-            if normalized_filename in existing_files:
-                print(f"File {filename} already exists, skipping.")
-                continue
-            download_path = os.path.join(download_dir, filename)
-            print(f"Downloading {filename} to {download_path}")
+    download_path = os.path.join(DOWNLOAD_FOLDER, filename)
+    print(f"Downloading {filename} to {download_path}")
 
-            try:
-                r = await s3.get_object(Bucket=bucket_name, Key=filename)
-                parts = []
-                body = r["Body"]
-                while data := await body.read(CHUNK_SIZE):
-                    parts.append(data)
+    try:
+        # response = await s3_client.get_object(Bucket=bucket_name, Key=filename)
+        response = S3_CLIENT.get_object(Bucket=bucket_name, Key=filename)
+        parts = []
+        body = response["Body"]
+        # while data := await body.read(CHUNK_SIZE):
+        while data := body.read(CHUNK_SIZE):
+            parts.append(data)
 
-                content = b"".join(parts)
+        content = b"".join(parts)
 
-                with open(download_path, "wb") as f:
-                    f.write(content)
-                print(f"Downloaded {filename} successfully.")
-                downloaded_files_gen.append(filename)
-            except Exception as e:
-                print(f"ERROR downloading {filename}: {e}")
-        return downloaded_files_gen
+        with open(download_path, "wb") as f:
+            f.write(content)
+
+        print(f"Downloaded {filename} successfully.")
+
+        # downloaded_files.append(filename)
+        return filename
+    except Exception as e:
+        print(f"ERROR downloading {filename}: {e}")
+        return False
+
+    # return downloaded_files
 
 
-async def fetch_nexrad_level3_data(
-    product_codes,
+def fetch_nexrad_level3_data(
+    # config,
+    product_code,
     radar_site,
     bucket_name,
     start_time,
     end_time,
+    # product,
     max_keys=1000,
 ):
-    session = aiobotocore.session.get_session()
-    async with session.create_client("s3") as s3:
-        all_files_list = []
 
-        for product_code_prefix in product_codes:
-            current_time = start_time
+    # session = boto3.session.Session()
+    # s3_client = session.client("s3", config=config, region_name="us-east-1")
 
-            while current_time <= end_time:
-                prefix = f"{radar_site}_{product_code_prefix}_{current_time.strftime('%Y_%m_%d_%H')}"
+    # session = aiobotocore.session.get_session()
+    # async with session.create_client("s3") as s3:
+    all_files_list = []
 
-                file_list_for_product = []
-                continuation_token = None
+    # for product_code in product_codes:
+    current_time = start_time
 
-                while True:
-                    list_kwargs = {
-                        "Bucket": bucket_name,
-                        "Prefix": prefix,
-                        "MaxKeys": max_keys,
-                    }
-                    if continuation_token:
-                        list_kwargs["ContinuationToken"] = continuation_token
+    # file_list_for_product = []
+    while current_time <= end_time:
+        prefix = f"{radar_site}_{product_code}_{current_time.strftime('%Y_%m_%d_%H')}"
 
-                    response = await s3.list_objects_v2(**list_kwargs)
+        continuation_token = None
 
-                    # if "Contents" not in response or not response["Contents"]:
-                    #     print(
-                    #         f"No 'Contents' found in response {response.keys()}"
-                    #     )
-                    # else:
-                    #     print(
-                    #         f"Number of objects in response: {len(response['Contents'])}"
-                    #     )
+        while True:
+            list_kwargs = {
+                "Bucket": bucket_name,
+                "Prefix": prefix,
+                "MaxKeys": max_keys,
+            }
+            if continuation_token:
+                list_kwargs["ContinuationToken"] = continuation_token
 
-                    for obj in response.get("Contents", []):
-                        match_files(
-                            product_code_prefix, file_list_for_product, obj
-                        )
+            response = S3_CLIENT.list_objects_v2(**list_kwargs)
 
-                    continuation_token = response.get("NextContinuationToken")
-                    if not continuation_token:
-                        break
+            for obj in response.get("Contents", []):
+                if matched_file := _match_file(product_code, obj):
+                    all_files_list.append(matched_file)
 
-                current_time += timedelta(hours=1)
-                all_files_list.extend(file_list_for_product)
+            continuation_token = response.get("NextContinuationToken")
+            if not continuation_token:
+                break
 
-                print(
-                    f"Files found for product type {product_code_prefix}: {file_list_for_product}"
-                )
+        current_time += timedelta(hours=1)
+        # all_files_list.extend(all_files_list)
 
-        print(f"Total Files found across all product types: {all_files_list}")
-        return all_files_list
+        print(f"Files found for product code {product_code}: {all_files_list}")
+
+    return all_files_list
+    # return {product: all_files_list}
 
 
-def match_files(product_code_prefix, file_list_for_product, obj):
+def _match_file(product_code_prefix, obj):
     filename = obj["Key"]
     print(f"Processing filename: {filename}")
 
@@ -254,29 +240,42 @@ def match_files(product_code_prefix, file_list_for_product, obj):
         filename,
     )
 
-    if match:
-        match_details = match.groupdict()
-        radar_site_file = match_details["site"]
-        product_code_file = match_details["product"]
-
-        file_datetime_str = f"{match_details['year']}-{match_details['month']}-{match_details['day']} {match_details['hour']}:{match_details['minute']}:{match_details['second']}"
-        try:
-            file_datetime = datetime.datetime.strptime(
-                file_datetime_str, "%Y-%m-%d %H:%M:%S"
-            ).replace(tzinfo=UTC)
-        except ValueError as e:
-            print(f"ERROR parsing timestamp: {filename} - {e}")
-
-        print(
-            f"MATCHED: {filename}, Product Prefix: {product_code_prefix}, Filename Product: {product_code_file}, Site: {radar_site_file}, Datetime: {file_datetime}"
-        )
-        file_list_for_product.append(filename)
-    else:
+    if not match:
         print(f"SKIPPING: Filename pattern mismatch: {filename}")
+        return False
+
+    match_details = match.groupdict()
+    radar_site_file = match_details["site"]
+    product_code_file = match_details["product"]
+
+    file_datetime_str = f"{match_details['year']}-{match_details['month']}-{match_details['day']} {match_details['hour']}:{match_details['minute']}:{match_details['second']}"
+    try:
+        file_datetime = datetime.datetime.strptime(
+            file_datetime_str, "%Y-%m-%d %H:%M:%S"
+        ).replace(tzinfo=UTC)
+    except ValueError as e:
+        print(f"ERROR parsing timestamp: {filename} - {e}")
+
+    print(
+        f"MATCHED: {filename}, Product Prefix: {product_code_prefix}, Filename Product: {product_code_file}, Site: {radar_site_file}, Datetime: {file_datetime}"
+    )
+
+    return filename
+
+
+def get_product_codes(product):
+    code_options = []
+
+    with open(ABSOLUTE_CODES_PATH, "r") as f:
+        code_options = json.load(f)
+
+    product_codes = [opt.get("value") for opt in code_options[product["type"]]]
+
+    yield from product_codes
 
 
 async def main(loop):
-    minutes = 20
+    minutes = 180
 
     now_utc = datetime.datetime.now(timezone.utc)
     end_time_utc = now_utc
@@ -293,97 +292,89 @@ async def main(loop):
         },
     ]
 
+    executor = ProcessPoolExecutor()
+
+    if not os.path.exists(DOWNLOAD_FOLDER):
+        os.makedirs(DOWNLOAD_FOLDER)
+
     current_path = os.getcwd()
     file_path = os.path.join(current_path, f"nexrad_level3_data")
 
+    plotted_files = {}
     for product in products:
-        code_options = []
+        product_codes = get_product_codes(product)
 
-        with open(ABSOLUTE_CODES_PATH, "r") as f:
-            code_options = json.load(f)
-
-        product_codes = [
-            opt.get("value") for opt in code_options[product["type"]]
-        ]
-
-        files_to_download = await fetch_nexrad_level3_data(
-            product_codes,
-            radar_site,
-            bucket_name,
-            start_time_utc,
-            end_time_utc,
+        nested_files_to_download = await asyncio.gather(
+            *(
+                loop.run_in_executor(
+                    executor,
+                    fetch_nexrad_level3_data,
+                    codes,
+                    radar_site,
+                    bucket_name,
+                    start_time_utc,
+                    end_time_utc,
+                )
+                for codes in product_codes
+            ),
         )
 
-        # existing_files = os.listdir(file_path)
+        files_to_download = Utl.flatten_list(
+            nested_files_to_download, flat=[], remove_falsey=True
+        )
 
-        # filtered_files = [
-        #     file
-        #     for file in files_to_download
-        #     if file not in existing_files
-        # ]
-        # print(f"Filtered files to process: {filtered_files}")
-        # LIST_FILE_NAME = f"nexrad_level3_{product['type']}_files.json"
+        print(f"Total Files found for {product['type']}: {files_to_download}")
 
-        # existing_files = {}
-        # try:
-        #     with open(
-        #         os.path.join(ABSOLUTE_LIST_PATH, LIST_FILE_NAME), "r"
-        #     ) as f:
-        #         existing_files = json.load(f)
-        # except FileNotFoundError:
-        #     pass
+        existing_files = []
 
-        ####### NEED TO NORMALIZE FILENAME FOR THIS CHECK ########
-        # filtered_files = [
-        #     file_key
-        #     for file_key in files_to_download
-        #     # if file_key.split("/")[-1] not in existing_files
-        #     # if f"K{''.join([file_key[0], *file_key[2:5]])}_{''.join(file_key[5:8])}_{file_key[1]}" not in existing_files
-        # ]
-        # print(
-        #     f"Filtered files to process (excluding existing): {filtered_files}"
-        # )
+        LIST_FILE_NAME = f"nexrad_level3_{product['type']}_files.json"
+
+        with open(os.path.join(ABSOLUTE_LIST_PATH, LIST_FILE_NAME), "r") as f:
+            existing_files.extend(json.load(f))
 
         downloaded_files = []
         if files_to_download:
-            downloaded_files = await download_nexrad_level3_data(
-                files_to_download, product
+            downloaded_files = await asyncio.gather(
+                *(
+                    loop.run_in_executor(
+                        executor,
+                        download_nexrad_level3_data,
+                        filename,
+                        existing_files,
+                    )
+                    for filename in files_to_download
+                ),
             )
-            print(f"{product['type']} download and processing complete.")
+
         else:
             print(f"No {product['type']} files to download.")
             continue
 
-        file_list = []
+        print("downloaded_files:", downloaded_files)
+
         if downloaded_files:
-            executor = ProcessPoolExecutor()
-            file_list = await asyncio.gather(
+            plotted_files[product["type"]] = await asyncio.gather(
                 *(
                     loop.run_in_executor(
                         executor,
                         read_and_plot_nexrad_level3_data,
                         file,
-                        [file_path, product["type"], product["field"]],
+                        file_path,
+                        product["type"],
+                        product["field"],
                     )
                     for file in downloaded_files
                 ),
             )
 
-            # for file in filtered_files:
-            #     if file in existing_files:
-            #         print(f"File {file} already exists, skipping.")
-            #         continue
-
-            #     plotted_file = read_and_plot_nexrad_level3_data(
-            #         file_path, file, product["type"], product["field"]
-            #     )
-            #     file_list.append(plotted_file)
         else:
             print("No files downloaded.")
+            continue
 
-        generate_file_list_json(file_list, product["type"])
+    generate_file_list_json(plotted_files, products, radar_site)
 
     for root, dirs, files in os.walk(file_path):
+        print(f"Removing all temp files")
         for f in files:
             os.unlink(os.path.join(root, f))
         for d in dirs:

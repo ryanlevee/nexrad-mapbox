@@ -254,8 +254,7 @@ def process_single_sweep(radar, sweep_num, file_key, product):
     )
 
 
-def plot_and_save_overlays(args):
-    product, file_key = args
+def plot_and_save_overlays(file_key, product):
     file_prefix = file_key.split("/")[-1]
 
     try:
@@ -275,19 +274,23 @@ def plot_and_save_overlays(args):
         return {"file": file_prefix, "sweeps": 0}
 
 
-def get_and_create_radar_file(args):
-    bucket_name, file_key = args
+TRANSFER_CONFIG = TransferConfig(max_concurrency=50)
+CONFIG = Config(signature_version=UNSIGNED, s3={"transfer_config": TRANSFER_CONFIG})
+SESSION = boto3.session.Session()
+S3_CLIENT = SESSION.client("s3", config=CONFIG, region_name="us-east-1")
+# DOWNLOAD_FOLDER = "nexrad_level2_data"
 
+def get_data_and_create_radar_file(file_key, bucket_name):
     """Downloads and processes all sweeps of a single radar file."""
-    transfer_config = TransferConfig(max_concurrency=20)
-    config = Config(
-        signature_version=UNSIGNED, s3={"transfer_config": transfer_config}
-    )
+    # transfer_config = TransferConfig(max_concurrency=20)
+    # config = Config(
+    #     signature_version=UNSIGNED, s3={"transfer_config": TRANSFER_CONFIG}
+    # )
 
-    session = boto3.session.Session()
+    # session = boto3.session.Session()
     bucket_name = "noaa-nexrad-level2"
-    s3_client = session.client("s3", config=config, region_name="us-east-1")
-    response = s3_client.get_object(Bucket=bucket_name, Key=file_key)
+    # s3_client = session.client("s3", config=CONFIG, region_name="us-east-1")
+    response = S3_CLIENT.get_object(Bucket=bucket_name, Key=file_key)
     content = response["Body"].read()
     file_prefix = file_key.split("/")[-1]
 
@@ -376,8 +379,8 @@ async def main(loop):
             *(
                 loop.run_in_executor(
                     executor,
-                    get_and_create_radar_file,
-                    [bucket_name, file],
+                    get_data_and_create_radar_file,
+                    file, bucket_name,
                 )
                 for file in filtered_files
             ),
@@ -385,7 +388,7 @@ async def main(loop):
                 loop.run_in_executor(
                     executor,
                     plot_and_save_overlays,
-                    [product_type, file],
+                    file, product_type,
                 )
                 for file in filtered_files
             ),

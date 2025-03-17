@@ -38,6 +38,8 @@ const App = () => {
     const imageCache = {};
     const intervalMs = 500;
 
+    const [isOverlayLoaded, setIsOverlayLoaded] = createSignal(false);
+
     const [level, setLevel] = createSignal('2');
     const [plotsPath, setPlotsPath] = createSignal(
         `${plotsPathPrefix}${level()}`
@@ -54,55 +56,70 @@ const App = () => {
     const [overlayData, setOverlayData] = createSignal({});
     const [filesData, setFilesData] = createSignal(null);
     const [timeFilePrefixes, setTimeFilePrefixes] = createSignal([]);
-    const [isOverlayLoaded, setIsOverlayLoaded] = createSignal(false);
     const [tiltIndex, setTiltIndex] = createSignal(0);
     const [timeIndex, setTimeIndex] = createSignal(null);
     const [maxTiltIndex, setMaxTiltIndex] = createSignal(null);
     const [moveEvent, setMoveEvent] = createSignal(null);
 
-    const [isPlaying, setIsPlaying] = createSignal(false);
-    const [isPlayingReverse, setIsPlayingReverse] = createSignal(false);
-    const [animationSpeed, setAnimationSpeed] = createSignal(1);
+    const [isTiltPlaying, setIsTiltPlaying] = createSignal(false);
+    const [isTimePlaying, setIsTimePlaying] = createSignal(false);
+    const [isTimePlayingReverse, setIsTimePlayingReverse] = createSignal(false);
+    const [timeAnimationSpeed, setTimeAnimationSpeed] = createSignal(1);
+    let tiltAnimationInterval;
     let animationInterval;
     let reverseAnimationInterval;
 
-    const setupOverlay = (
+    function useDebounce(signalSetter, delay) {
+        let timerHandle;
+
+        const debouncedSignalSetter = x =>
+            new Promise(resolve => {
+                clearTimeout(timerHandle);
+                timerHandle = setTimeout(() => resolve(signalSetter(x)), delay);
+            });
+        onCleanup(() => clearInterval(timerHandle));
+        return debouncedSignalSetter;
+    }
+
+    const useDebounceTiltIndex = useDebounce(tiltIndex, 25);
+    const useDebounceTiltAnimation = useDebounce(tiltIndex, 15);
+    const useDebounceTimeIndex = useDebounce(timeIndex, 25);
+    const useDebounceTimeAnimation = useDebounce(timeIndex, 7);
+
+    const setupOverlay = () =>
         // origin = 'ERROR: NO ORIGIN PROVIDED FOR setupOverlay()'
-    ) => {
-        // console.log('running debouncedSetupOverlay()...');
+        {
+            // console.log('running debouncedSetupOverlay()...');
 
-        const newFilePrefix = timeFilePrefixes()[timeIndex()];
-        setFilePrefix(newFilePrefix);
+            const newFilePrefix = timeFilePrefixes()[timeIndex()];
+            setFilePrefix(newFilePrefix);
 
-        const newFileData = filesData()[newFilePrefix];
-        const newMaxTiltIndex = newFileData.sweeps - 1;
+            const newFileData = filesData()[newFilePrefix];
+            const newMaxTiltIndex = newFileData.sweeps - 1;
 
-        if (tiltIndex() > newMaxTiltIndex) {
-            setTiltIndex(newMaxTiltIndex);
-        }
+            if (tiltIndex() > newMaxTiltIndex) {
+                setTiltIndex(newMaxTiltIndex);
+            }
 
-        setMaxTiltIndex(newMaxTiltIndex);
-        updateOverlay(origin);
-    };
+            setMaxTiltIndex(newMaxTiltIndex);
+            updateOverlay(origin);
+        };
 
-    const debouncedSetupOverlay = debounce(setupOverlay, 50);
-    // const debouncedSetupOverlayLong = debounce(setupOverlay, 100);
-
-    const cycleAnimationSpeed = (_, speed = 0) => {
-        const wasPlaying = isPlaying();
-        const wasPlayingReverse = isPlayingReverse();
+    const cycleTimeAnimationSpeed = (_, speed = 0) => {
+        const wasPlaying = isTimePlaying();
+        const wasPlayingReverse = isTimePlayingReverse();
 
         if (wasPlaying) {
-            pauseAnimation();
+            pauseTimeAnimation();
         } else if (wasPlayingReverse) {
-            pauseReverseAnimation();
+            pauseReverseTimeAnimation();
         }
 
         if (speed) {
             console.log(speed);
-            setAnimationSpeed(speed);
+            setTimeAnimationSpeed(speed);
         } else {
-            setAnimationSpeed(currentSpeed => {
+            setTimeAnimationSpeed(currentSpeed => {
                 const currentIndex = animationSpeeds.indexOf(currentSpeed);
                 const nextIndex = (currentIndex + 1) % animationSpeeds.length;
                 return animationSpeeds[nextIndex];
@@ -111,16 +128,18 @@ const App = () => {
 
         requestAnimationFrame(() => {
             if (wasPlaying) {
-                startPlayAnimation();
+                startForwardTimeAnimation();
             } else if (wasPlayingReverse) {
-                playReverseAnimation();
+                startReverseTimeAnimation();
             }
         });
     };
 
     const ensureProduct = () => {
         if (
-            (level() == '2' && productType() == 'reflectivity' && productCode() == null) ||
+            (level() == '2' &&
+                productType() == 'reflectivity' &&
+                productCode() == null) ||
             (level() == '3' && productCode() && tiltIndex() == 0)
         ) {
             return true;
@@ -128,115 +147,151 @@ const App = () => {
         return false;
     };
 
-    const startPlayAnimation = () => {
+    const startForwardTimeAnimation = () => {
         // console.log('playing');
         if (!ensureProduct()) return false;
         if (!animationInterval) {
-            setIsPlaying(true);
-            setIsPlayingReverse(false);
-            pauseReverseAnimation();
-            animationInterval = setInterval(() => {
-                setTimeIndex(prevIndex => {
-                    const nextIndex = prevIndex + 1;
-                    return nextIndex >= timeFilePrefixes().length
-                        ? 0
-                        : nextIndex;
-                });
-                debouncedSetupOverlay(
-                    // 'debouncedSetupOverlay() playing animation'
+            setIsTimePlaying(true);
+            setIsTimePlayingReverse(false);
+            pauseReverseTimeAnimation();
+            animationInterval = setInterval(async () => {
+                await useDebounceTimeAnimation(
+                    setTimeIndex(prevIndex => {
+                        const nextIndex = prevIndex + 1;
+                        return nextIndex >= timeFilePrefixes().length
+                            ? 0
+                            : nextIndex;
+                    })
                 );
+                setupOverlay();
+                // debouncedSetupOverlay();
+                // 'debouncedSetupOverlay() playing animation'
                 // }
-            }, intervalMs / animationSpeed());
+            }, intervalMs / timeAnimationSpeed());
         } else {
-            pauseAnimation();
+            pauseTimeAnimation();
         }
     };
 
-    const playReverseAnimation = () => {
+    const startReverseTimeAnimation = () => {
         // console.log('reverse playing');
         if (!ensureProduct()) return false;
         if (!reverseAnimationInterval) {
-            setIsPlayingReverse(true);
-            setIsPlaying(false);
-            pauseAnimation();
-            reverseAnimationInterval = setInterval(() => {
-                setTimeIndex(prevIndex => {
-                    const nextIndex = prevIndex - 1;
-                    return nextIndex < 0
-                        ? timeFilePrefixes().length - 1
-                        : nextIndex;
-                });
-                // setupOverlay()
-                debouncedSetupOverlay(
-                    // 'debouncedSetupOverlay() reverse playing animation'
+            setIsTimePlayingReverse(true);
+            setIsTimePlaying(false);
+            pauseTimeAnimation();
+            reverseAnimationInterval = setInterval(async () => {
+                await useDebounceTimeAnimation(
+                    setTimeIndex(prevIndex => {
+                        const nextIndex = prevIndex - 1;
+                        return nextIndex < 0
+                            ? timeFilePrefixes().length - 1
+                            : nextIndex;
+                    })
                 );
-            }, intervalMs / animationSpeed());
+                setupOverlay();
+                // debouncedSetupOverlay();
+                // 'debouncedSetupOverlay() reverse playing animation'
+            }, intervalMs / timeAnimationSpeed());
         } else {
-            pauseReverseAnimation();
+            pauseReverseTimeAnimation();
         }
     };
 
-    const pauseAnimation = () => {
-        setIsPlaying(false);
+    const startTiltAnimation = () => {
+        // if (!ensureProduct()) return false;
+        console.log('tiltAnimationInterval:', tiltAnimationInterval);
+
+        if (!tiltAnimationInterval) {
+            pauseAllAnimations();
+            setIsTiltPlaying(true);
+
+            tiltAnimationInterval = setInterval(async () => {
+                await useDebounceTiltAnimation(
+                    setTiltIndex(prevIndex => {
+                        const nextIndex = prevIndex + 1;
+                        return nextIndex >= maxTiltIndex() ? 0 : nextIndex;
+                    })
+                );
+                updateOverlay();
+            }, 350);
+        } else {
+            pauseTiltAnimation();
+        }
+    };
+
+    const pauseTiltAnimation = () => {
+        setIsTiltPlaying(false);
+        clearInterval(tiltAnimationInterval);
+        tiltAnimationInterval = null;
+    };
+
+    const pauseTimeAnimation = () => {
+        setIsTimePlaying(false);
         clearInterval(animationInterval);
         animationInterval = null;
     };
 
-    const pauseReverseAnimation = () => {
-        setIsPlayingReverse(false);
+    const pauseReverseTimeAnimation = () => {
+        setIsTimePlayingReverse(false);
         clearInterval(reverseAnimationInterval);
         reverseAnimationInterval = null;
     };
 
-    const pauseBothAnimations = () => {
-        pauseAnimation();
-        pauseReverseAnimation();
+    const pauseAllAnimations = () => {
+        pauseTimeAnimation();
+        pauseReverseTimeAnimation();
+        pauseTiltAnimation();
     };
 
-    const moveForwardTimeFrame = () => {
+    const moveForwardTimeFrame = async () => {
         if (!ensureProduct()) return false;
-        pauseBothAnimations();
+        pauseAllAnimations();
         if (timeIndex() == timeFilePrefixes().length - 1) {
             skipToFirstTimeFrame();
         } else {
-            setTimeIndex(prevIndex =>
-                Math.min(prevIndex + 1, timeFilePrefixes().length - 1)
+            await useDebounceTimeAnimation(
+                setTimeIndex(prevIndex =>
+                    Math.min(prevIndex + 1, timeFilePrefixes().length - 1)
+                )
             );
         }
-        debouncedSetupOverlay(
-            // 'debouncedSetupOverlay() move forward btn'
-        );
+        setupOverlay();
+        // debouncedSetupOverlay();
+        // 'debouncedSetupOverlay() move forward btn'
     };
 
-    const moveBackwardTimeFrame = () => {
+    const moveBackwardTimeFrame = async () => {
         if (!ensureProduct()) return false;
-        pauseBothAnimations();
+        pauseAllAnimations();
         if (timeIndex() == 0) {
             skipToLastTimeFrame();
         } else {
-            setTimeIndex(prevIndex => Math.max(prevIndex - 1, 0));
+            await useDebounceTimeAnimation(
+                setTimeIndex(prevIndex => Math.max(prevIndex - 1, 0))
+            );
         }
-        debouncedSetupOverlay(
-            // 'debouncedSetupOverlay() move backward btn'
-        );
+        setupOverlay();
+        // debouncedSetupOverlay();
+        // 'debouncedSetupOverlay() move backward btn'
     };
 
-    const skipToLastTimeFrame = () => {
+    const skipToLastTimeFrame = async () => {
         if (!ensureProduct()) return false;
-        pauseBothAnimations();
+        pauseAllAnimations();
         setTimeIndex(timeFilePrefixes().length - 1);
-        debouncedSetupOverlay(
-            // 'debouncedSetupOverlay() skip to first btn'
-        );
+        setupOverlay();
+        // debouncedSetupOverlay();
+        // 'debouncedSetupOverlay() skip to first btn'
     };
 
-    const skipToFirstTimeFrame = () => {
+    const skipToFirstTimeFrame = async () => {
         if (!ensureProduct()) return false;
-        pauseBothAnimations();
-        setTimeIndex(0);
-        debouncedSetupOverlay(
-            // 'debouncedSetupOverlay() skip to last btn'
-        );
+        pauseAllAnimations();
+        await useDebounceTimeAnimation(setTimeIndex(0));
+        setupOverlay();
+        // debouncedSetupOverlay();
+        // 'debouncedSetupOverlay() skip to last btn'
     };
 
     const generateTimeFilePrefixes = async () => {
@@ -317,7 +372,7 @@ const App = () => {
             latestFileTime.getTime() - 3 * 60 * 60 * 1000
         );
 
-        const filteredPrefixes = fileNames.reduce((validPrefixes, fileName) => {
+        const filteredPrefixes = fileNames.reduce((acc, fileName) => {
             const prefix = fileName.replace('.png', '');
             const timePart = prefix.split('_')[1];
             const year = prefix.substring(4, 8);
@@ -342,9 +397,9 @@ const App = () => {
                 fileTime >= threeHoursBeforeLatest &&
                 fileTime <= latestFileTime
             ) {
-                validPrefixes.push(prefix);
+                acc.push(prefix);
             }
-            return validPrefixes;
+            return acc;
         }, []);
 
         setTimeFilePrefixes(filteredPrefixes);
@@ -367,7 +422,7 @@ const App = () => {
         if (mapRef.current) {
             mapRef.current.remove();
         }
-        pauseBothAnimations();
+        pauseAllAnimations();
         Object.keys(imageCache).forEach(key => delete imageCache[key]);
     });
 
@@ -403,7 +458,7 @@ const App = () => {
         });
     };
 
-    const cacheImage = async imageKey => {
+    const cacheImage = imageKey => {
         fetch(`/${plotsPath()}/${imageKey}.png`)
             .then(response => response.blob())
             .then(blob => {
@@ -419,10 +474,7 @@ const App = () => {
     const cacheAllImages = async () => {
         console.log(`Caching all ${productType()} images...`);
 
-        const maxIdx =
-            level() == '2'
-                ? maxTiltIndex()
-                : 0;
+        const maxIdx = level() == '2' ? maxTiltIndex() : 0;
 
         for (let iTilt = 0; iTilt <= maxIdx; iTilt++) {
             const prefixes = timeFilePrefixes();
@@ -512,71 +564,74 @@ const App = () => {
         // testCoords.sw,
     ];
 
-    const updateOverlay = (
+    const updateOverlay = () =>
         // origin = 'ERROR: NO ORIGIN PROVIDED FOR updateOverlay()'
-    ) => {
-        // console.log(`running updateOverlay, origin: ${origin}`);
-        if (!ensureProduct()) return false;
+        {
+            // console.log(`running updateOverlay, origin: ${origin}`);
+            if (!ensureProduct()) return false;
 
-        const fileKey = `${filePrefix()}_${productType()}_idx${tiltIndex()}`;
-        const imageURL = `/${plotsPath()}/${fileKey}.png`;
+            const fileKey = `${filePrefix()}_${productType()}_idx${tiltIndex()}`;
+            const imageURL = `/${plotsPath()}/${fileKey}.png`;
 
-        if (imageCache[fileKey]) {
-            console.log('DEBUG: Updating overlay with cached image:', fileKey);
-            mapRef.current.getSource('radar').updateImage({
-                url: imageCache[fileKey],
-            });
-        } else {
-            try {
+            if (imageCache[fileKey]) {
                 console.log(
-                    'DEBUG: Updating overlay with new image:',
-                    imageURL
+                    'DEBUG: Updating overlay with cached image:',
+                    fileKey
                 );
-                preloadImage(imageURL).then(dataURL => {
-                    imageCache[fileKey] = dataURL;
-                    mapRef.current.getSource('radar').updateImage({
-                        url: dataURL,
-                    });
+                mapRef.current.getSource('radar').updateImage({
+                    url: imageCache[fileKey],
                 });
-            } catch (error) {
-                console.error('Image preloading failed:', error);
-            }
-        }
-
-        if (jsonDataCache[fileKey]) {
-            console.log('DEBUG: Getting cached json:', `${fileKey}.json `);
-            const data = jsonDataCache[`${fileKey}`];
-
-            if (data) {
-                setOverlayData(data);
-                mapRef.current
-                    .getSource('radar')
-                    .setCoordinates(getCoordinates(data));
             } else {
-                console.error(
-                    `Invalid image coordinates in ${fileKey}.json (cached)`
-                );
+                try {
+                    console.log(
+                        'DEBUG: Updating overlay with new image:',
+                        imageURL
+                    );
+                    preloadImage(imageURL).then(dataURL => {
+                        imageCache[fileKey] = dataURL;
+                        mapRef.current.getSource('radar').updateImage({
+                            url: dataURL,
+                        });
+                    });
+                } catch (error) {
+                    console.error('Image preloading failed:', error);
+                }
             }
-        } else {
-            console.log('DEBUG: Getting new json:', `${fileKey}.json `);
-            fetch(`/${plotsPath()}/${fileKey}.json`)
-                .then(response => response.json())
-                .then(data => {
-                    setOverlayData(data);
-                    jsonDataCache[fileKey] = data;
 
-                    if (data) {
-                        mapRef.current
-                            .getSource('radar')
-                            .setCoordinates(getCoordinates(data));
-                    } else {
-                        console.error(
-                            `Invalid image coordinates in ${fileKey}.json`
-                        );
-                    }
-                });
-        }
-    };
+            if (jsonDataCache[fileKey]) {
+                console.log('DEBUG: Getting cached json:', `${fileKey}.json `);
+                const data = jsonDataCache[`${fileKey}`];
+
+                if (data) {
+                    setOverlayData(data);
+                    mapRef.current
+                        .getSource('radar')
+                        .setCoordinates(getCoordinates(data));
+                } else {
+                    console.error(
+                        `Invalid image coordinates in ${fileKey}.json (cached)`
+                    );
+                }
+            } else {
+                console.log('DEBUG: Getting new json:', `${fileKey}.json `);
+                fetch(`/${plotsPath()}/${fileKey}.json`)
+                    .then(response => response.json())
+                    .then(data => {
+                        setOverlayData(data);
+                        jsonDataCache[fileKey] = data;
+
+                        if (data) {
+                            mapRef.current
+                                .getSource('radar')
+                                .setCoordinates(getCoordinates(data));
+                        } else {
+                            console.error(
+                                `Invalid image coordinates in ${fileKey}.json`
+                            );
+                        }
+                    });
+            }
+        };
 
     const debouncedUpdateOverlay = debounce(updateOverlay, 10);
     const debouncedUpdateOverlaySlider = debounce(updateOverlay, 65);
@@ -617,9 +672,12 @@ const App = () => {
             setFilePrefix(newFilePrefixes[newFilePrefixes.length - 1]);
             const currentFile = filesData()[filePrefix()];
             setMaxTiltIndex(currentFile.sweeps - 1);
+
+            // await useDebounceTimeIndex(setTimeIndex(timeFilePrefixes().length - 1))
             setTimeIndex(timeFilePrefixes().length - 1);
 
-            debouncedUpdateOverlay();
+            updateOverlay();
+            // debouncedUpdateOverlay();
             // `debouncedUpdateOverlay() level 2 productType() ${productType()} createEffect`
         }
     });
@@ -646,7 +704,7 @@ const App = () => {
             const newFilePrefixes = await generateTimeFilePrefixes();
             setFilePrefix(newFilePrefixes[newFilePrefixes.length - 1]);
             setTiltIndex(0);
-            setTimeIndex(newFilePrefixes.length - 1);
+            useDebounceTimeIndex(setTimeIndex(newFilePrefixes.length - 1));
 
             if (!cachedProducts[productType()][productCode()]) {
                 await cacheAllImages();
@@ -656,9 +714,9 @@ const App = () => {
                 console.log(
                     'DEBUG: Inside level 3B createEffect isOverlayLoaded()...'
                 );
-                debouncedUpdateOverlay(
-                    // `debouncedUpdateOverlay() level 3 productCode() ${productCode()} createEffect`
-                );
+                updateOverlay();
+                // debouncedUpdateOverlay();
+                // `debouncedUpdateOverlay() level 3 productCode() ${productCode()} createEffect`
             }
         }
     });
@@ -673,16 +731,24 @@ const App = () => {
             productType() == 'reflectivity' &&
             tiltSlider
         ) {
-            tiltSlider.addEventListener('input', e => {
-                pauseBothAnimations();
+            tiltSlider.addEventListener('input', async e => {
+                pauseAllAnimations();
 
                 console.log(
                     'DEBUG:: inside level TWO (2) tiltSlider addEventListener'
                 );
-                setTiltIndex(parseInt(e.target.value));
-                debouncedUpdateOverlaySlider(
-                    // 'debouncedUpdateOverlay() tiltSlider createEffect'
+
+                // setTiltIndex(parseInt(e.target.value));
+                // useDebounce(tiltIndex(parseInt(e.target.value)), 250)
+                // updateOverlay()
+                // useDebounceTiltIndex((() => (setTiltIndex(parseInt(e.target.value)), updateOverlay()))(), 1000);
+
+                await useDebounceTiltIndex(
+                    setTiltIndex(parseInt(e.target.value))
                 );
+                updateOverlay();
+                // debouncedUpdateOverlaySlider();
+                // 'debouncedUpdateOverlay() tiltSlider createEffect'
             });
         }
     });
@@ -719,14 +785,18 @@ const App = () => {
         const timeSlider = document.getElementById('time-slider');
 
         if (isOverlayLoaded() && timeSlider) {
-            timeSlider.addEventListener('input', e => {
+            timeSlider.addEventListener('input', async e => {
                 console.log('DEBUG:: inside timeSlider addEventListener');
-                pauseBothAnimations();
+                pauseAllAnimations();
                 const index = parseInt(e.target.value);
-                setTimeIndex(index);
-                debouncedSetupOverlay(
-                    // 'debouncedSetupOverlay() timeSlider createEffect'
-                );
+                await useDebounceTimeIndex(setTimeIndex(index));
+                // setTimeIndex(index);
+
+                setupOverlay();
+                // debouncedSetupOverlaySlider();
+                // debouncedSetupOverlay(
+                //     // 'debouncedSetupOverlay() timeSlider createEffect'
+                // );
             });
         }
     });
@@ -798,7 +868,7 @@ const App = () => {
         >
             <div id="map" style={{ flex: 1 }}></div>
 
-            {isOverlayLoaded() && (
+            {isOverlayLoaded() ? (
                 <>
                     <ResetBtn map={mapRef.current} mapOrigin={mapOrigin} />
 
@@ -808,20 +878,23 @@ const App = () => {
                         <ControlBox
                             tiltIndex={tiltIndex}
                             setTiltIndex={setTiltIndex}
-                            debouncedUpdateOverlay={debouncedUpdateOverlay}
                             maxTiltIndex={maxTiltIndex}
-                            pauseBothAnimations={pauseBothAnimations}
+                            pauseAllAnimations={pauseAllAnimations}
                             overlayData={overlayData}
+                            useDebounceTiltIndex={useDebounceTiltIndex}
+                            updateOverlay={updateOverlay}
+                            isTiltPlaying={isTiltPlaying}
+                            startTiltAnimation={startTiltAnimation}
                         />
                     )}
 
                     <ControlBar
-                        isPlaying={isPlaying}
-                        isPlayingReverse={isPlayingReverse}
-                        animationSpeed={animationSpeed}
-                        cycleAnimationSpeed={cycleAnimationSpeed}
-                        startPlayAnimation={startPlayAnimation}
-                        playReverseAnimation={playReverseAnimation}
+                        isTimePlaying={isTimePlaying}
+                        isTimePlayingReverse={isTimePlayingReverse}
+                        timeAnimationSpeed={timeAnimationSpeed}
+                        cycleTimeAnimationSpeed={cycleTimeAnimationSpeed}
+                        startForwardTimeAnimation={startForwardTimeAnimation}
+                        startReverseTimeAnimation={startReverseTimeAnimation}
                         moveForwardTimeFrame={moveForwardTimeFrame}
                         moveBackwardTimeFrame={moveBackwardTimeFrame}
                         skipToLastTimeFrame={skipToLastTimeFrame}
@@ -833,10 +906,10 @@ const App = () => {
                                 productType={productType}
                                 productTypes={productTypes}
                                 setProductType={setProductType}
-                                pauseBothAnimations={pauseBothAnimations}
+                                pauseAllAnimations={pauseAllAnimations}
                                 setProductCode={setProductCode}
-                                animationSpeed={animationSpeed}
-                                setAnimationSpeed={setAnimationSpeed}
+                                timeAnimationSpeed={timeAnimationSpeed}
+                                setTimeAnimationSpeed={setTimeAnimationSpeed}
                             ></TypeSelect>
                         )}
 
@@ -847,7 +920,7 @@ const App = () => {
                                     codeOptions={codeOptions}
                                     productCode={productCode}
                                     setProductCode={setProductCode}
-                                    pauseBothAnimations={pauseBothAnimations}
+                                    pauseAllAnimations={pauseAllAnimations}
                                     productType={productType}
                                 ></CodeSelect>
                             )}
@@ -882,6 +955,15 @@ const App = () => {
                         src={`/colorbars/${productType()}_colorbar.png`}
                         id="colorbar"
                     />
+                </>
+            ) : (
+                <>
+                    <div id="loading-container">
+                        <code id="loading-text">
+                            loading<span id="loading-dots">...</span>
+                        </code>
+                    </div>
+                    <div id="loading-overlay"></div>
                 </>
             )}
         </div>

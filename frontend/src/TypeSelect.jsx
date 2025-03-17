@@ -1,7 +1,7 @@
 // TypeSelect.jsx
 
 const TypeSelect = props => {
-    const { productType, productTypes, setProductType, pauseBothAnimations, setProductCode } =
+    const { productType, productTypes, setProductType, pauseAllAnimations, setProductCode } =
         props;
 
     // const options = [
@@ -15,7 +15,7 @@ const TypeSelect = props => {
         if (productType() == level) return false;
         setProductCode(null);
         setProductType(level);
-        pauseBothAnimations();
+        pauseAllAnimations();
     };
 
     return (

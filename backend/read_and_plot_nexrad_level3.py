@@ -52,8 +52,7 @@ def generate_colorbar(ax, product_name, file_base):
     print(f"Saved colorbar image to: {colorbar_image_path_full}")
 
 
-def read_and_plot_nexrad_level3_data(filename, args):
-    file_path, product_type, field = args
+def read_and_plot_nexrad_level3_data(filename, file_path, product_type, field):
     fns = filename.split("_")
 
     normalized_filename = (
@@ -75,7 +74,7 @@ def read_and_plot_nexrad_level3_data(filename, args):
 
     radar = False
 
-    print("Reading NEXRAD Level 3 file:", radar_data_path)
+    # print("Reading NEXRAD Level 3 file:", radar_data_path)
     try:
         radar = pyart.io.read_nexrad_level3(radar_data_path)
     except FileNotFoundError:
@@ -85,9 +84,10 @@ def read_and_plot_nexrad_level3_data(filename, args):
         print("Error details:", e)
 
     if not radar:
+        print(f"Error: {product_type} radar cannot be created for: {radar_data_path}")
         return False
 
-    print("\n--- Generating plot of radar_echo_classification ---")
+    # print("\n--- Generating plot of radar_echo_classification ---")
 
     display = pyart.graph.RadarDisplay(radar)
     sweep_num = 0
@@ -190,4 +190,19 @@ def read_and_plot_nexrad_level3_data(filename, args):
     plt.close()
 
     print(f"Plot saved to {save_img_filename}")
-    return {normalized_filename: {"sweeps": 1}}
+
+    return normalized_filename
+
+    # return {normalized_filename: {"sweeps": 1}}
+
+# current_path = os.getcwd()
+# file_path = os.path.join(current_path, f"nexrad_level3_data")
+# product = {"type": "hydrometeor", "field": "radar_echo_classification"}
+
+
+# read_and_plot_nexrad_level3_data(
+#     'PDT_N1H_2025_03_16_18_08_20',
+#     file_path,
+#     product['type'],
+#     product['field'],
+# )

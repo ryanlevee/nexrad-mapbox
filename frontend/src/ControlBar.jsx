@@ -4,12 +4,12 @@ import { createEffect } from 'solid-js';
 
 const ControlBar = props => {
     const {
-        isPlaying,
-        isPlayingReverse,
-        animationSpeed,
-        cycleAnimationSpeed,
-        startPlayAnimation,
-        playReverseAnimation,
+        isTimePlaying,
+        isTimePlayingReverse,
+        timeAnimationSpeed,
+        cycleTimeAnimationSpeed,
+        startForwardTimeAnimation,
+        startReverseTimeAnimation,
         moveForwardTimeFrame,
         moveBackwardTimeFrame,
         skipToLastTimeFrame,
@@ -19,15 +19,15 @@ const ControlBar = props => {
     createEffect(() => {
         const speedButton = document.getElementById('speed-button');
         if (speedButton) {
-            speedButton.textContent = `${animationSpeed()}x`;
+            speedButton.textContent = `${timeAnimationSpeed()}x`;
         }
     });
 
     createEffect(() => {
         const playForwardBtn = document.querySelector('#play-forward-btn');
         const playReverseBtn = document.querySelector('#play-reverse-btn');
-        playForwardBtn.className = isPlaying() ? 'playing' : 'not-playing';
-        playReverseBtn.className = isPlayingReverse() ? 'playing' : 'not-playing';
+        playForwardBtn.className = isTimePlaying() ? 'playing' : 'not-playing';
+        playReverseBtn.className = isTimePlayingReverse() ? 'playing' : 'not-playing';
     });
 
     return (
@@ -38,22 +38,22 @@ const ControlBar = props => {
             <button
                 id="play-reverse-btn"
                 class="play-btn"
-                onClick={playReverseAnimation}
+                onClick={startReverseTimeAnimation}
             >
-                {isPlayingReverse() ? '⏸' : `◀`}
+                {isTimePlayingReverse() ? '⏸' : `◀`}
             </button>
             <button
                 id="play-forward-btn"
                 class="play-btn"
-                onClick={startPlayAnimation}
+                onClick={startForwardTimeAnimation}
             >
-                {isPlaying() ? '⏸' : '▶'}
+                {isTimePlaying() ? '⏸' : '▶'}
             </button>
 
             <button onClick={moveForwardTimeFrame}>▶▶</button>
             <button onClick={skipToLastTimeFrame}>▶|</button>
 
-            <button id="speed-button" onClick={cycleAnimationSpeed}>
+            <button id="speed-button" onClick={cycleTimeAnimationSpeed}>
                 1x
             </button>
         </code>

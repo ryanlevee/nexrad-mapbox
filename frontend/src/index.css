@@ -184,7 +184,7 @@ input::-webkit-slider-thumb {
     flex-direction: column;
     /* height: 10vh; */
     top: 42.5vh;
-    left: .75vw;
+    left: 0.75vw;
     z-index: 2;
     justify-content: center;
     width: 5vw;
@@ -197,10 +197,14 @@ input::-webkit-slider-thumb {
     }
 }
 
-
-#control-tilt-container button {
+.tilt-btn {
     /* outline: 1px solid white!important; */
     width: 50%;
+    height: 3vh;
+}
+
+.play-tilt-btn {
+    width: 100%;
     height: 3vh;
 }
 
@@ -451,4 +455,49 @@ input::-webkit-slider-thumb {
 
 .x-mark::before {
     transform: rotate(90deg);
+}
+
+#loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #1e1e1e;
+}
+
+#loading-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 25vw;
+    height: 25vh;
+    display: flex; 
+    align-items: center;
+    justify-content: center;
+    transform: translate(37.5vw, 37.5vh);
+    background: white;
+    border: 1px rgb(243, 243, 243) gray;
+    z-index: 1;
+    border-radius: 25px;
+}
+
+#loading-text {
+    color: black;
+    font-size: 2rem;
+}
+
+#loading-dots {
+    font-weight: bold;
+    /* display: inline-block; */
+    font-family: monospace;
+    /* font-size: 30px; */
+    clip-path: inset(0 3ch 0 0);
+    animation: l 1s steps(4, jump-none) infinite;
+}
+
+@keyframes l {
+    to {
+        clip-path: inset(0);
+    }
 }

@@ -3,12 +3,12 @@ const CodeSelect = props => {
         codeOptions,
         productCode,
         setProductCode,
-        pauseBothAnimations,
+        pauseAllAnimations,
         productType,
     } = props;
 
     const handleChange = event => {
-        pauseBothAnimations();
+        pauseAllAnimations();
         if (event.target.value.count != 0)
             setProductCode(event.target.value.value);
     };
