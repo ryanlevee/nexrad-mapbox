@@ -10,6 +10,6 @@ export default defineConfig({
         target: 'esnext',
     },
     define: {
-        'process.env.VITE_MAPBOX_ACCESS_TOKEN': JSON.stringify(process.env.VITE_MAPBOX_ACCESS_TOKEN)
+        'MAP_TOKEN': JSON.stringify(process.env.MAP_TOKEN)
       }
   });

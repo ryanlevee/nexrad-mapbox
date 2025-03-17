@@ -507,7 +507,7 @@ const App = () => {
         setOverlayData(data);
         generateProductCodes();
 
-        const mapboxAccessToken = process.env.VITE_MAPBOX_ACCESS_TOKEN;
+        const mapboxAccessToken = process.env.MAP_TOKEN;
         mapboxgl.accessToken = mapboxAccessToken;
 
         mapRef.current = new mapboxgl.Map({
