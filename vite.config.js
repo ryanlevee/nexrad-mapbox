@@ -9,7 +9,4 @@ export default defineConfig({
     build: {
         target: 'esnext',
     },
-    define: {
-        'MAP_TOKEN': JSON.stringify(process.env.MAP_TOKEN),
-    },
 });
