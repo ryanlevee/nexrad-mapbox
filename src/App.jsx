@@ -641,11 +641,11 @@ const App = () => {
         let cacheInterval;
         cacheInterval = setInterval(() => {
             i++;
-            if (i >= 3 || !isCaching()) {
-                setIsCaching(false);
+            if (i >= 10 || !isCaching()) {
                 clearInterval(cacheInterval);
                 updateOverlay();
                 setLoadedAnyway(true);
+                setIsCaching(false);
             }
             console.log(i);
         }, 1000);
@@ -726,7 +726,6 @@ const App = () => {
             if (!cachedProducts[productType()][productCode()]) {
                 await handleIsCaching();
                 // setIsCaching(true);
-                // await cacheAllImages();
                 // await Promise.allSettled(await cacheAllImages());
             }
 
