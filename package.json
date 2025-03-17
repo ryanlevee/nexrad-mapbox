@@ -12,6 +12,7 @@
     "license": "MIT",
     "dependencies": {
         "mapbox-gl": "^3.10.0",
+        "pnpm": "^10.6.3",
         "solid-js": "^1.9.5",
         "vite": "^6.0.0",
         "vite-plugin-solid": "^2.11.6"
