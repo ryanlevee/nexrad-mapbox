@@ -6,7 +6,7 @@ import numpy as np
 import pyart
 from pyart.core import transforms
 
-RELATIVE_PATH = "./frontend/public/"
+RELATIVE_PATH = "./public/"
 ABSOLUTE_IMAGE_PATH = f"{os.path.abspath(RELATIVE_PATH)}/plots_level3/"
 
 

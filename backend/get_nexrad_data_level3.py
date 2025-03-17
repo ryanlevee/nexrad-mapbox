@@ -17,7 +17,7 @@ from pytz import UTC
 from read_and_plot_nexrad_level3 import read_and_plot_nexrad_level3_data
 from utils import Utl
 
-RELATIVE_PATH = "./frontend/public/"
+RELATIVE_PATH = "./public/"
 ABSOLUTE_CODES_PATH = f"{os.path.abspath(RELATIVE_PATH)}/codes/options.json"
 ABSOLUTE_IMAGE_PATH = f"{os.path.abspath(RELATIVE_PATH)}/plots_level3/"
 ABSOLUTE_LIST_PATH = f"{os.path.abspath(RELATIVE_PATH)}/lists/"

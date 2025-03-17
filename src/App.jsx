@@ -337,68 +337,70 @@ const App = () => {
             return;
         }
 
-        const latestFileName = fileNames[fileNames.length - 1];
-        const latestPrefix = latestFileName.replace('.png', '');
-        const latestTimePart = latestPrefix.split('_')[1];
-        const latestYear = latestPrefix.substring(4, 8);
-        const latestMonth = latestPrefix.substring(8, 10);
-        const latestDay = latestPrefix.substring(10, 12);
-        const latestHour = latestTimePart.substring(0, 2);
-        const latestMinute = latestTimePart.substring(2, 4);
-        const latestSecond = latestTimePart.substring(4, 6);
+        // const latestFileName = fileNames[fileNames.length - 1];
+        // const latestPrefix = latestFileName.replace('.png', '');
+        // const latestTimePart = latestPrefix.split('_')[1];
+        // const latestYear = latestPrefix.substring(4, 8);
+        // const latestMonth = latestPrefix.substring(8, 10);
+        // const latestDay = latestPrefix.substring(10, 12);
+        // const latestHour = latestTimePart.substring(0, 2);
+        // const latestMinute = latestTimePart.substring(2, 4);
+        // const latestSecond = latestTimePart.substring(4, 6);
 
-        const realTime = false;
+        // const realTime = false;
 
-        let latestFileTime;
+        // let latestFileTime;
 
-        if (realTime) {
-            latestFileTime = new Date();
-        } else {
-            latestFileTime = new Date(
-                Date.UTC(
-                    parseInt(latestYear, 10),
-                    parseInt(latestMonth, 10) - 1,
-                    parseInt(latestDay, 10),
-                    parseInt(latestHour, 10),
-                    parseInt(latestMinute, 10),
-                    parseInt(latestSecond, 10)
-                )
-            );
-        }
+        // if (realTime) {
+        //     latestFileTime = new Date();
+        // } else {
+        //     latestFileTime = new Date(
+        //         Date.UTC(
+        //             parseInt(latestYear, 10),
+        //             parseInt(latestMonth, 10) - 1,
+        //             parseInt(latestDay, 10),
+        //             parseInt(latestHour, 10),
+        //             parseInt(latestMinute, 10),
+        //             parseInt(latestSecond, 10)
+        //         )
+        //     );
+        // }
 
-        const threeHoursBeforeLatest = new Date(
-            latestFileTime.getTime() - 3 * 60 * 60 * 1000
-        );
+        // const threeHoursBeforeLatest = new Date(
+        //     latestFileTime.getTime() - 3 * 60 * 60 * 1000
+        // );
 
         const filteredPrefixes = fileNames.reduce((acc, fileName) => {
             const prefix = fileName.replace('.png', '');
-            const timePart = prefix.split('_')[1];
-            const year = prefix.substring(4, 8);
-            const month = prefix.substring(8, 10);
-            const day = prefix.substring(10, 12);
-            const hour = timePart.substring(0, 2);
-            const minute = timePart.substring(2, 4);
-            const second = timePart.substring(4, 6);
+            // const timePart = prefix.split('_')[1];
+            // const year = prefix.substring(4, 8);
+            // const month = prefix.substring(8, 10);
+            // const day = prefix.substring(10, 12);
+            // const hour = timePart.substring(0, 2);
+            // const minute = timePart.substring(2, 4);
+            // const second = timePart.substring(4, 6);
 
-            const fileTime = new Date(
-                Date.UTC(
-                    parseInt(year, 10),
-                    parseInt(month, 10) - 1,
-                    parseInt(day, 10),
-                    parseInt(hour, 10),
-                    parseInt(minute, 10),
-                    parseInt(second, 10)
-                )
-            );
+            // const fileTime = new Date(
+            //     Date.UTC(
+            //         parseInt(year, 10),
+            //         parseInt(month, 10) - 1,
+            //         parseInt(day, 10),
+            //         parseInt(hour, 10),
+            //         parseInt(minute, 10),
+            //         parseInt(second, 10)
+            //     )
+            // );
 
-            if (
-                fileTime >= threeHoursBeforeLatest &&
-                fileTime <= latestFileTime
-            ) {
+            // if (
+            //     fileTime >= threeHoursBeforeLatest &&
+            //     fileTime <= latestFileTime
+            // ) {
                 acc.push(prefix);
-            }
+            // }
             return acc;
         }, []);
+
+        console.log('filteredPrefixes:', filteredPrefixes);
 
         setTimeFilePrefixes(filteredPrefixes);
         return filteredPrefixes;
@@ -472,12 +474,13 @@ const App = () => {
     const cacheAllImages = async () => {
         console.log(`Caching all ${productType()} images...`);
 
-        const maxIdx = level() == '2' ? maxTiltIndex() : 0;
+        const prefixes = timeFilePrefixes();
 
-        for (let iTilt = 0; iTilt <= maxIdx; iTilt++) {
-            const prefixes = timeFilePrefixes();
+        for (let prefix of prefixes) {
+            const maxIdx = filesData()[prefix].sweeps - 1
 
-            for (let prefix of prefixes) {
+            for (let iTilt = 0; iTilt <= maxIdx; iTilt++) {
+
                 const imageKey = `${prefix}_${productType()}_idx${iTilt}`;
                 cacheImage(imageKey);
             }
@@ -562,74 +565,69 @@ const App = () => {
         // testCoords.sw,
     ];
 
-    const updateOverlay = () =>
-        // origin = 'ERROR: NO ORIGIN PROVIDED FOR updateOverlay()'
-        {
-            // console.log(`running updateOverlay, origin: ${origin}`);
-            if (!ensureProduct()) return false;
+    const updateOverlay = () => {
+        console.log(`running updateOverlay...`);
+        if (!ensureProduct()) return false;
 
-            const fileKey = `${filePrefix()}_${productType()}_idx${tiltIndex()}`;
-            const imageURL = `/${plotsPath()}/${fileKey}.png`;
+        const fileKey = `${filePrefix()}_${productType()}_idx${tiltIndex()}`;
+        const imageURL = `/${plotsPath()}/${fileKey}.png`;
 
-            if (imageCache[fileKey]) {
+        if (imageCache[fileKey]) {
+            console.log('DEBUG: Updating overlay with cached image:', fileKey);
+            mapRef.current.getSource('radar').updateImage({
+                url: imageCache[fileKey],
+            });
+        } else {
+            try {
                 console.log(
-                    'DEBUG: Updating overlay with cached image:',
-                    fileKey
+                    'DEBUG: Updating overlay with new image:',
+                    imageURL
                 );
-                mapRef.current.getSource('radar').updateImage({
-                    url: imageCache[fileKey],
+                preloadImage(imageURL).then(dataURL => {
+                    imageCache[fileKey] = dataURL;
+                    mapRef.current.getSource('radar').updateImage({
+                        url: dataURL,
+                    });
                 });
-            } else {
-                try {
-                    console.log(
-                        'DEBUG: Updating overlay with new image:',
-                        imageURL
-                    );
-                    preloadImage(imageURL).then(dataURL => {
-                        imageCache[fileKey] = dataURL;
-                        mapRef.current.getSource('radar').updateImage({
-                            url: dataURL,
-                        });
-                    });
-                } catch (error) {
-                    console.error('Image preloading failed:', error);
-                }
+            } catch (error) {
+                console.error('Image preloading failed:', error);
             }
+        }
 
-            if (jsonDataCache[fileKey]) {
-                console.log('DEBUG: Getting cached json:', `${fileKey}.json `);
-                const data = jsonDataCache[`${fileKey}`];
+        if (jsonDataCache[fileKey]) {
+            console.log('DEBUG: Getting cached json:', `${fileKey}.json `);
+            const data = jsonDataCache[`${fileKey}`];
 
-                if (data) {
+            if (data) {
+                setOverlayData(data);
+                mapRef.current
+                    .getSource('radar')
+                    .setCoordinates(getCoordinates(data));
+            } else {
+                console.error(
+                    `Invalid image coordinates in ${fileKey}.json (cached)`
+                );
+            }
+        } else {
+            console.log('DEBUG: Getting new json:', `${fileKey}.json `);
+            fetch(`/${plotsPath()}/${fileKey}.json`)
+                .then(response => response.json())
+                .then(data => {
                     setOverlayData(data);
-                    mapRef.current
-                        .getSource('radar')
-                        .setCoordinates(getCoordinates(data));
-                } else {
-                    console.error(
-                        `Invalid image coordinates in ${fileKey}.json (cached)`
-                    );
-                }
-            } else {
-                console.log('DEBUG: Getting new json:', `${fileKey}.json `);
-                fetch(`/${plotsPath()}/${fileKey}.json`)
-                    .then(response => response.json())
-                    .then(data => {
-                        setOverlayData(data);
-                        jsonDataCache[fileKey] = data;
+                    jsonDataCache[fileKey] = data;
 
-                        if (data) {
-                            mapRef.current
-                                .getSource('radar')
-                                .setCoordinates(getCoordinates(data));
-                        } else {
-                            console.error(
-                                `Invalid image coordinates in ${fileKey}.json`
-                            );
-                        }
-                    });
-            }
-        };
+                    if (data) {
+                        mapRef.current
+                            .getSource('radar')
+                            .setCoordinates(getCoordinates(data));
+                    } else {
+                        console.error(
+                            `Invalid image coordinates in ${fileKey}.json`
+                        );
+                    }
+                });
+        }
+    };
 
     createEffect(() => {
         switch (productType()) {

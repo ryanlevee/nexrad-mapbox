@@ -7,8 +7,8 @@ archive*
 script*.py
 __pycache__
 *public/plots_*
+nexrad_level2_data
 nexrad_level3_data
 *test*
 *_BU*
 .vscode
-temp_file_*

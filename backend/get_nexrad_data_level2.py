@@ -18,7 +18,7 @@ from botocore import UNSIGNED
 from botocore.client import Config
 from pyart.core import transforms
 
-RELATIVE_PATH = "./frontend/public/"
+RELATIVE_PATH = "./public/"
 ABSOLUTE_IMAGE_PATH = f"{os.path.abspath(RELATIVE_PATH)}/plots_level2/"
 ABSOLUTE_LIST_PATH = f"{os.path.abspath(RELATIVE_PATH)}/lists/"
 LIST_FILE_NAME = "nexrad_level2_reflectivity_files.json"
@@ -53,7 +53,7 @@ def generate_file_list_json(plotted_files, product_type, radar_site):
         k: v for k, v in product_file_list.items() if k >= min_prefix
     }
 
-    filtered_product_list.update(plotted_files)
+    filtered_product_list.update(plotted_files[product_type])
 
     # indiv_filenames = list(set(plotted_file_list))
 
@@ -71,9 +71,9 @@ def generate_file_list_json(plotted_files, product_type, radar_site):
 
     print(f"Removing old {product_type} pngs and jsons in {ABSOLUTE_IMAGE_PATH}")
 
-    for file in os.listdir(ABSOLUTE_IMAGE_PATH):
-        if file[:23] not in filtered_file_list:
-            os.unlink(os.path.join(ABSOLUTE_IMAGE_PATH, file))
+    # for file in os.listdir(ABSOLUTE_IMAGE_PATH):
+    #     if file[:23] not in filtered_file_list:
+    #         os.unlink(os.path.join(ABSOLUTE_IMAGE_PATH, file))
 
     # files_for_json = file_list
 
@@ -279,7 +279,7 @@ def process_single_sweep(radar, sweep_num, file_key, product):
 
     print(
         f"Created image, Elevation: {elevation_angle:.2f} degrees, Azimuth: "
-        f" {azimuth_angle:.2f} degrees. Saved to {image_path_full}"
+        f"{azimuth_angle:.2f} degrees. Saved to {image_path_full}"
     )
 
 
