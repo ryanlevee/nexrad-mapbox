@@ -9,7 +9,8 @@ export default defineConfig({
     build: {
         target: 'esnext',
     },
-    // define: {
-    //     'import.meta.env.VITE_MAPBOX_ACCESS_TOKEN': JSON.stringify(process.env.VITE_MAPBOX_ACCESS_TOKEN)
-    //   }
-});
+    define: {
+        '__PRODUCTION__': true,
+        '__MAP_TOKEN__': JSON.stringify(process.env.VITE_MAPBOX_ACCESS_TOKEN)
+      }
+  });

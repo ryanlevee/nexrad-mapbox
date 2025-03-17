@@ -16,11 +16,8 @@ import ResetBtn from './ResetBtn';
 
 let mapboxAccessToken;
 
-if (import.meta.env.PROD) {
-    import('dotenv').then(dot => {
-        dot.config();
-        mapboxAccessToken = process.env.VITE_MAPBOX_ACCESS_TOKEN;
-    });
+if (import.meta.env.__PRODUCTION__) {
+    mapboxAccessToken = __MAP_TOKEN__;
 } else {
     import('./config').then(con => (mapboxAccessToken = con.mapboxAccessToken));
 }
@@ -517,8 +514,6 @@ const App = () => {
         setOverlayData(data);
         generateProductCodes();
 
-        // const mapboxAccessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
-        // const mapboxAccessToken = process.env.VITE_MAPBOX_ACCESS_TOKEN;
         mapboxgl.accessToken = mapboxAccessToken;
 
         mapRef.current = new mapboxgl.Map({
