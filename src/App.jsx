@@ -14,14 +14,15 @@ import CodeSelect from './CodeSelect';
 import TypeSelect from './TypeSelect';
 import ResetBtn from './ResetBtn';
 
-let mapboxAccessToken
+let mapboxAccessToken;
 
 if (import.meta.env.PROD) {
-    import('dotenv')
-    dotenv.dotenv.config()
-    mapboxAccessToken = process.env.VITE_MAPBOX_ACCESS_TOKEN 
+    import('dotenv').then(dot => {
+        dot.dotenv.config();
+        mapboxAccessToken = process.env.VITE_MAPBOX_ACCESS_TOKEN;
+    });
 } else {
-    import('./config').then(con => mapboxAccessToken = con.mapboxAccessToken)
+    import('./config').then(con => (mapboxAccessToken = con.mapboxAccessToken));
 }
 
 const App = () => {
