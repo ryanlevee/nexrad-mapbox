@@ -17,6 +17,12 @@ importers:
             vite-plugin-solid:
                 specifier: ^2.11.6
                 version: 2.11.6(solid-js@1.9.5)(vite@6.0.0)
+            mapbox-gl:
+                specifier: ^3.10.0
+                version: ^3.10.0
+            solid-js: 
+                specifier: ^1.9.5
+                version: 1.9.5
 
 packages:
     '@ampproject/remapping@2.3.0':
