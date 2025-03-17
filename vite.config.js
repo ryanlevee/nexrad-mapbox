@@ -10,6 +10,6 @@ export default defineConfig({
         target: 'esnext',
     },
     define: {
-        'MAP_TOKEN': JSON.stringify(process.env.MAP_TOKEN)
-      }
-  });
+        'MAP_TOKEN': JSON.stringify(process.env.MAP_TOKEN),
+    },
+});
