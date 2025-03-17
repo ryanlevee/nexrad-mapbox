@@ -45,6 +45,7 @@ const App = () => {
 
     const [productCode, setProductCode] = createSignal(null);
     const [productType, setProductType] = createSignal('reflectivity');
+    const [isCaching, setIsCaching] = createSignal(false);
 
     const animationSpeeds = [0.5, 1, 1.5, 2, 2.5, 3];
 
@@ -84,24 +85,20 @@ const App = () => {
     const useDebounceTimeIndex = useDebounce(timeIndex, 25);
     const useDebounceTimeAnimation = useDebounce(timeIndex, 7);
 
-    const setupOverlay = () =>
-        // origin = 'ERROR: NO ORIGIN PROVIDED FOR setupOverlay()'
-        {
-            // console.log('running debouncedSetupOverlay()...');
+    const setupOverlay = () => {
+        const newFilePrefix = timeFilePrefixes()[timeIndex()];
+        setFilePrefix(newFilePrefix);
 
-            const newFilePrefix = timeFilePrefixes()[timeIndex()];
-            setFilePrefix(newFilePrefix);
+        const newFileData = filesData()[newFilePrefix];
+        const newMaxTiltIndex = newFileData.sweeps - 1;
 
-            const newFileData = filesData()[newFilePrefix];
-            const newMaxTiltIndex = newFileData.sweeps - 1;
+        if (tiltIndex() > newMaxTiltIndex) {
+            setTiltIndex(newMaxTiltIndex);
+        }
 
-            if (tiltIndex() > newMaxTiltIndex) {
-                setTiltIndex(newMaxTiltIndex);
-            }
-
-            setMaxTiltIndex(newMaxTiltIndex);
-            updateOverlay(origin);
-        };
+        setMaxTiltIndex(newMaxTiltIndex);
+        updateOverlay(origin);
+    };
 
     const cycleTimeAnimationSpeed = (_, speed = 0) => {
         const wasPlaying = isTimePlaying();
@@ -395,12 +392,11 @@ const App = () => {
             //     fileTime >= threeHoursBeforeLatest &&
             //     fileTime <= latestFileTime
             // ) {
-                acc.push(prefix);
+            acc.push(prefix);
             // }
             return acc;
         }, []);
-
-        console.log('filteredPrefixes:', filteredPrefixes);
+        // console.log('filteredPrefixes:', filteredPrefixes);
 
         setTimeFilePrefixes(filteredPrefixes);
         return filteredPrefixes;
@@ -459,7 +455,7 @@ const App = () => {
     };
 
     const cacheImage = imageKey => {
-        fetch(`/${plotsPath()}/${imageKey}.png`)
+        return fetch(`/${plotsPath()}/${imageKey}.png`)
             .then(response => response.blob())
             .then(blob => {
                 const reader = new FileReader();
@@ -468,25 +464,30 @@ const App = () => {
                     imageCache[imageKey] = reader.result;
                 };
                 reader.readAsDataURL(blob);
+                return true;
             });
     };
 
     const cacheAllImages = async () => {
-        console.log(`Caching all ${productType()} images...`);
+        console.log(
+            `Caching all ${productType()}:${productCode() ?? ''} images...`
+        );
 
         const prefixes = timeFilePrefixes();
+        const promises = [];
 
         for (let prefix of prefixes) {
-            const maxIdx = filesData()[prefix].sweeps - 1
+            const maxIdx = filesData()[prefix].sweeps - 1;
 
             for (let iTilt = 0; iTilt <= maxIdx; iTilt++) {
-
                 const imageKey = `${prefix}_${productType()}_idx${iTilt}`;
-                cacheImage(imageKey);
+                promises.push(cacheImage(imageKey));
             }
         }
 
         if (level() == '3') cachedProducts[productType()][productCode()] = true;
+
+        return promises;
     };
 
     onMount(async () => {
@@ -494,7 +495,9 @@ const App = () => {
         const prefix = filePrefixes[filePrefixes.length - 1];
 
         findMaxTiltIndex(prefix);
+        setIsCaching(true);
         await cacheAllImages();
+        setIsCaching(false);
 
         setFilePrefix(prefix);
 
@@ -514,6 +517,7 @@ const App = () => {
             container: 'map',
             zoom: 7.8,
             center: mapOrigin,
+            accessToken: mapboxAccessToken,
             // style:'mapbox://styles/mapbox/outdoors-v11'
         });
 
@@ -584,7 +588,7 @@ const App = () => {
                     imageURL
                 );
                 preloadImage(imageURL).then(dataURL => {
-                    imageCache[fileKey] = dataURL;
+                    // imageCache[fileKey] = dataURL;
                     mapRef.current.getSource('radar').updateImage({
                         url: dataURL,
                     });
@@ -700,10 +704,14 @@ const App = () => {
             useDebounceTimeIndex(setTimeIndex(newFilePrefixes.length - 1));
 
             if (!cachedProducts[productType()][productCode()]) {
-                await cacheAllImages();
+                setIsCaching(true);
+                // await cacheAllImages();
+                await Promise.allSettled(await cacheAllImages());
             }
 
-            if (isOverlayLoaded()) {
+            setIsCaching(false);
+
+            if (isOverlayLoaded() && !isCaching()) {
                 console.log(
                     'DEBUG: Inside level 3B createEffect isOverlayLoaded()...'
                 );
@@ -795,12 +803,16 @@ const App = () => {
     });
 
     // TIME SLIDER ELEMENTS
-    ////////////////////////// NEED TO FIX - HITS TWICE ON OPEN //////////////////////////
     createEffect(() => {
         const timeSlider = document.getElementById('time-slider');
         const timeSliderTicks = document.getElementById('time-slider-ticks');
 
-        if (isOverlayLoaded() && timeSlider && timeSliderTicks) {
+        if (
+            isOverlayLoaded() &&
+            timeSlider &&
+            timeSliderTicks
+            // && isCaching()
+        ) {
             console.log('DEBUG:: inside timeSlider create ticks');
 
             timeSlider.max = timeFilePrefixes().length - 1; //.toString();
@@ -861,7 +873,7 @@ const App = () => {
         >
             <div id="map" style={{ flex: 1 }}></div>
 
-            {isOverlayLoaded() ? (
+            {isOverlayLoaded() && (
                 <>
                     <ResetBtn map={mapRef.current} mapOrigin={mapOrigin} />
 
@@ -949,14 +961,24 @@ const App = () => {
                         id="colorbar"
                     />
                 </>
-            ) : (
+            )}
+            {(!isOverlayLoaded() || isCaching()) && (
                 <>
                     <div id="loading-container">
                         <code id="loading-text">
-                            loading<span id="loading-dots">...</span>
+                            {isCaching() ? (
+                                <span>updating</span>
+                            ) : (
+                                <span>loading</span>
+                            )}
+                            <span id="loading-dots">...</span>
                         </code>
                     </div>
-                    <div id="loading-overlay"></div>
+                    {isCaching() ? (
+                        <div id="updating-overlay"></div>
+                    ) : (
+                        <div id="loading-overlay"></div>
+                    )}
                 </>
             )}
         </div>

@@ -457,13 +457,21 @@ input::-webkit-slider-thumb {
     transform: rotate(90deg);
 }
 
-#loading-overlay {
+#loading-overlay,
+#updating-overlay {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
+}
+
+#loading-overlay {
     background: #1e1e1e;
+}
+
+#updating-overlay {
+    background: #1e1e1e4a;
 }
 
 #loading-container {
@@ -471,11 +479,11 @@ input::-webkit-slider-thumb {
     top: 0;
     left: 0;
     width: 25vw;
-    height: 25vh;
-    display: flex; 
+    height: 15vh;
+    display: flex;
     align-items: center;
     justify-content: center;
-    transform: translate(37.5vw, 37.5vh);
+    transform: translate(37.5vw, 42.5vh);
     background: white;
     border: 1px rgb(243, 243, 243) gray;
     z-index: 1;
