@@ -1,3 +1,4 @@
+// import fs from 'fs';
 import {
     onMount,
     createSignal,
@@ -13,6 +14,8 @@ import MouseLatLng from './MouseLatLng';
 import CodeSelect from './CodeSelect';
 import TypeSelect from './TypeSelect';
 import ResetBtn from './ResetBtn';
+import UpdateAlert from './UpdateAlert';
+import { Utl } from './utils';
 
 const App = () => {
     const basePath = '.';
@@ -55,7 +58,9 @@ const App = () => {
     const [filePrefix, setFilePrefix] = createSignal('');
     const [overlayData, setOverlayData] = createSignal({});
     const [filesData, setFilesData] = createSignal(null);
+    const [allFilesData, setAllFilesData] = createSignal({});
     const [timeFilePrefixes, setTimeFilePrefixes] = createSignal([]);
+    const [allTimeFilePrefixes, setAllTimeFilePrefixes] = createSignal({});
     const [tiltIndex, setTiltIndex] = createSignal(0);
     const [timeIndex, setTimeIndex] = createSignal(null);
     const [maxTiltIndex, setMaxTiltIndex] = createSignal(null);
@@ -290,26 +295,102 @@ const App = () => {
         // 'debouncedSetupOverlay() skip to last btn'
     };
 
-    const generateTimeFilePrefixes = async () => {
-        let allFilesData = false;
+    // const apiEndpoint = 'https://abcdef123.execute-api.us-east-1.amazonaws.com/prod/check-updates'; // example
+    // const apiEndpoint = `${listsPath}/updated_data.json`;
+    const apiEndpointTest = 'http://localhost:4000';
 
-        try {
-            const response = await fetch(
-                `/${listsPath}/nexrad_level${level()}_${productType()}_files.json`
+    const generateAllFilePrefixes = async () => {
+        let allListData = {};
+
+        const response = await fetch(`${apiEndpointTest}/list-all/`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        allListData = await response.json();
+
+        if (!Utl.truthy(allListData)) return false; // needs to throw error
+
+        // console.log('allListData:', allListData);
+
+        let processedListData = {};
+        let fileNames = {};
+
+        const productTypeNames = productTypes.map(p => p.value);
+
+        for (let product of productTypeNames) {
+            // console.log('allListData[product]:', allListData[product]);
+
+            // processedListData[product] = Object.entries(
+            //     allListData[product]
+            // ).reduce((acc, [key, value]) => {
+            //     // const nameParts = key.split('_');
+            //     // if (nameParts[nameParts.length - 1] == productCode())
+            //         acc[key] = value;
+            //     return acc;
+            // }, {});
+
+            // console.log('processedListData[product]:', processedListData[product]);
+
+            const productListData = allListData[product];
+
+            processedListData[product] = Object.keys(productListData)
+                .sort()
+                .reduce((obj, key) => {
+                    obj[key] = productListData[key];
+                    return obj;
+                }, {});
+
+
+            fileNames[product] = Object.keys(productListData).reduce(
+                (acc, fileName) => {
+                    const prefix = fileName.replace('.png', '');
+                    acc.push(prefix);
+                    return acc;
+                },
+                []
             );
-            allFilesData = await response.json();
-        } catch (error) {
-            console.error('Error fetching file list:', error);
         }
 
-        if (!allFilesData) return false;
+        console.log('processedListData:', processedListData);
+        console.log('fileNames:', fileNames);
 
-        let selectFilesData;
+        if (!Utl.truthy(fileNames)) {
+            setAllTimeFilePrefixes({});
+            return;
+        }
+
+        setAllFilesData(processedListData);
+        setAllTimeFilePrefixes(fileNames);
+        return fileNames;
+    };
+
+    const generateProductFilePrefixes = async (update = false) => {
+        let listData = [];
+
+        if (update) {
+            // `/${listsPath}/nexrad_level${level()}_${productType()}_files.json`
+            const response = await fetch(`${apiEndpointTest}/list/`, {
+                // need to add path for each product
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+            listData = await response.json();
+        } else {
+            listData = allFilesData()[productType()];
+        }
+
+        if (!listData) return false; // needs to throw error
+
+        let selectListData;
 
         if (level() == '2') {
-            selectFilesData = allFilesData;
+            selectListData = listData;
         } else if (level() == '3') {
-            selectFilesData = Object.entries(allFilesData).reduce(
+            selectListData = Object.entries(listData).reduce(
                 (acc, [key, value]) => {
                     const fnParts = key.split('_');
                     if (fnParts[fnParts.length - 1] == productCode())
@@ -320,10 +401,10 @@ const App = () => {
             );
         }
 
-        const sortedFilesData = Object.keys(selectFilesData)
+        const sortedFilesData = Object.keys(selectListData)
             .sort()
             .reduce((obj, key) => {
-                obj[key] = selectFilesData[key];
+                obj[key] = selectListData[key];
                 return obj;
             }, {});
 
@@ -491,8 +572,105 @@ const App = () => {
         return promises;
     };
 
+    const [isUpToDate, setIsUpToDate] = createSignal(true);
+
+    const cacheUpdatedImages = updates => {
+        Object.entries(updates).forEach(([key, value]) => {
+            if (value) {
+                // console.log(`${key}:${value}`)
+                // timeFilePrefixes().push()
+                console.log(filesData());
+            }
+        });
+    };
+
+    ////////////////// API TESTING //////////////////
+
+    const handleUpdates = async updateData => {
+        const response = await fetch(`${apiEndpointTest}/list/`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        let updatedList = await response.json();
+
+        // Object.entries(updateData).forEach(([key, value]) => {
+        generateProductFilePrefixes(true);
+        // timeFilePrefixes().push(key);
+        // filesData()[key] = value;
+        // });
+
+        console.log(timeFilePrefixes());
+        console.log(filesData());
+        return true;
+    };
+
+    const checkUpdates = async () => {
+        console.log('Checking for updates...');
+        const response = await fetch(`${apiEndpointTest}/flag/`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        }); // my AWS API endpoint
+
+        let data = await response.json();
+
+        if (typeof data === 'string') {
+            try {
+                data = JSON.parse(data); // Parse again if it's a string
+            } catch (parseError) {
+                console.error('Error parsing JSON string:', parseError);
+                return; // Exit the function if parsing fails
+            }
+        }
+
+        console.log(data);
+
+        let updateComplete = false;
+
+        if (data.updated) {
+            const updates = data.updates;
+            const updatedProduct = updates[productType()];
+
+            if (updatedProduct) {
+                setIsUpToDate(false);
+                updateComplete = handleUpdates(updatedProduct);
+                data.updates[productType()] = 0;
+            }
+        }
+
+        setIsUpToDate(true);
+
+        if (!updateComplete) {
+            return false;
+        }
+
+        //// mimic sending POST request to API:
+        data.updated = 0;
+
+        try {
+            const r = await fetch(`${apiEndpointTest}/flag/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data),
+            });
+            console.log(data);
+
+            const responseBody = await r.json();
+            console.log(responseBody);
+        } catch (error) {
+            console.error('Error checking updates:', error);
+        }
+    };
+    /////////////////////////////////////////////////
+
     onMount(async () => {
-        const filePrefixes = await generateTimeFilePrefixes();
+        const filePrefixes = (await generateAllFilePrefixes())[productType()];
         const prefix = filePrefixes[filePrefixes.length - 1];
 
         findMaxTiltIndex(prefix);
@@ -505,11 +683,16 @@ const App = () => {
         const initFilename = `${filePrefix()}_${productType()}_idx0`;
         const initImgPath = `/${plotsPath()}/${initFilename}${imgExt}`;
         const initJsonPath = `/${plotsPath()}/${initFilename}.json`;
+        console.log(initJsonPath);
+
         const initResponse = await fetch(initJsonPath);
         const data = await initResponse.json();
 
         setOverlayData(data);
         generateProductCodes();
+
+        // checkUpdates(); // Initial check
+        setInterval(checkUpdates, 10000); // Check every 2 minutes (120000 ms)
 
         const mapboxAccessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
         mapboxgl.accessToken = mapboxAccessToken;
@@ -536,7 +719,7 @@ const App = () => {
                     // testCoords.se,
                     // testCoords.sw,
                 ],
-                tileSize: 256,
+                // tileSize: 256,  // "unknown property" apparently
             });
 
             mapRef.current.addLayer({
@@ -685,7 +868,7 @@ const App = () => {
         ) {
             if (!ensureProduct()) return false;
             console.log('DEBUG: Inside level 2 createEffect...');
-            const newFilePrefixes = await generateTimeFilePrefixes();
+            const newFilePrefixes = await generateProductFilePrefixes();
             setFilePrefix(newFilePrefixes[newFilePrefixes.length - 1]);
             const currentFile = filesData()[filePrefix()];
             setMaxTiltIndex(currentFile.sweeps - 1);
@@ -718,7 +901,7 @@ const App = () => {
         ) {
             // if (!ensureProduct()) return false;
             console.log('DEBUG: Inside level 3B createEffect...');
-            const newFilePrefixes = await generateTimeFilePrefixes();
+            const newFilePrefixes = await generateProductFilePrefixes();
             setFilePrefix(newFilePrefixes[newFilePrefixes.length - 1]);
             setTiltIndex(0);
             useDebounceTimeIndex(setTimeIndex(newFilePrefixes.length - 1));
@@ -829,10 +1012,10 @@ const App = () => {
         const timeSliderTicks = document.getElementById('time-slider-ticks');
 
         if (
+            isUpToDate() &&
             isOverlayLoaded() &&
             timeSlider &&
             timeSliderTicks
-            // && isCaching()
         ) {
             console.log('DEBUG:: inside timeSlider create ticks');
 
@@ -896,6 +1079,8 @@ const App = () => {
 
             {isOverlayLoaded() && (
                 <>
+                    {!isUpToDate() && <UpdateAlert />}
+
                     <ResetBtn map={mapRef.current} mapOrigin={mapOrigin} />
 
                     <MouseLatLng moveEvent={moveEvent} />
