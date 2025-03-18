@@ -15,6 +15,7 @@ import CodeSelect from './CodeSelect';
 import TypeSelect from './TypeSelect';
 import ResetBtn from './ResetBtn';
 import UpdateAlert from './UpdateAlert';
+import { Utl } from './utils';
 
 const App = () => {
     const basePath = '.';
@@ -57,7 +58,9 @@ const App = () => {
     const [filePrefix, setFilePrefix] = createSignal('');
     const [overlayData, setOverlayData] = createSignal({});
     const [filesData, setFilesData] = createSignal(null);
+    const [allFilesData, setAllFilesData] = createSignal({});
     const [timeFilePrefixes, setTimeFilePrefixes] = createSignal([]);
+    const [allTimeFilePrefixes, setAllTimeFilePrefixes] = createSignal({});
     const [tiltIndex, setTiltIndex] = createSignal(0);
     const [timeIndex, setTimeIndex] = createSignal(null);
     const [maxTiltIndex, setMaxTiltIndex] = createSignal(null);
@@ -296,8 +299,8 @@ const App = () => {
     // const apiEndpoint = `${listsPath}/updated_data.json`;
     const apiEndpointTest = 'http://localhost:4000';
 
-    const generateTimeFilePrefixesInit = async () => {
-        let allFilesData = [];
+    const generateAllFilePrefixes = async () => {
+        let allListData = {};
 
         const response = await fetch(`${apiEndpointTest}/list-all/`, {
             method: 'GET',
@@ -305,83 +308,89 @@ const App = () => {
                 'Content-Type': 'application/json',
             },
         });
-        allFilesData = await response.json();
+        allListData = await response.json();
 
-        if (!allFilesData) return false; // needs to throw error
+        if (!Utl.truthy(allListData)) return false; // needs to throw error
 
-        let selectFilesData;
+        // console.log('allListData:', allListData);
 
-        if (level() == '2') {
-            selectFilesData = allFilesData;
-        } else if (level() == '3') {
-            selectFilesData = Object.entries(allFilesData).reduce(
-                (acc, [key, value]) => {
-                    const fnParts = key.split('_');
-                    if (fnParts[fnParts.length - 1] == productCode())
-                        acc[key] = value;
+        let processedListData = {};
+        let fileNames = {};
+
+        const productTypeNames = productTypes.map(p => p.value);
+
+        for (let product of productTypeNames) {
+            // console.log('allListData[product]:', allListData[product]);
+
+            // processedListData[product] = Object.entries(
+            //     allListData[product]
+            // ).reduce((acc, [key, value]) => {
+            //     // const nameParts = key.split('_');
+            //     // if (nameParts[nameParts.length - 1] == productCode())
+            //         acc[key] = value;
+            //     return acc;
+            // }, {});
+
+            // console.log('processedListData[product]:', processedListData[product]);
+
+            const productListData = allListData[product];
+
+            processedListData[product] = Object.keys(productListData)
+                .sort()
+                .reduce((obj, key) => {
+                    obj[key] = productListData[key];
+                    return obj;
+                }, {});
+
+
+            fileNames[product] = Object.keys(productListData).reduce(
+                (acc, fileName) => {
+                    const prefix = fileName.replace('.png', '');
+                    acc.push(prefix);
                     return acc;
                 },
-                {}
+                []
             );
         }
 
-        const sortedFilesData = Object.keys(selectFilesData)
-            .sort()
-            .reduce((obj, key) => {
-                obj[key] = selectFilesData[key];
-                return obj;
-            }, {});
+        console.log('processedListData:', processedListData);
+        console.log('fileNames:', fileNames);
 
-        setFilesData(sortedFilesData);
-        const fileNames = Object.keys(sortedFilesData);
-
-        if (!fileNames || fileNames.length === 0) {
-            setTimeFilePrefixes([]);
+        if (!Utl.truthy(fileNames)) {
+            setAllTimeFilePrefixes({});
             return;
         }
 
-        const filteredPrefixes = fileNames.reduce((acc, fileName) => {
-            const prefix = fileName.replace('.png', '');
-            acc.push(prefix);
-            return acc;
-        }, []);
-
-        setTimeFilePrefixes(filteredPrefixes);
-        return filteredPrefixes;
+        setAllFilesData(processedListData);
+        setAllTimeFilePrefixes(fileNames);
+        return fileNames;
     };
 
-    const generateTimeFilePrefixes = async (update = false, init = false) => {
-        let allFilesData = [];
+    const generateProductFilePrefixes = async (update = false) => {
+        let listData = [];
 
-        if (init) {
-            const response = await fetch(`${apiEndpointTest}/list-all/`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-            allFilesData = await response.json();
-        } else if (update) {
+        if (update) {
             // `/${listsPath}/nexrad_level${level()}_${productType()}_files.json`
             const response = await fetch(`${apiEndpointTest}/list/`, {
+                // need to add path for each product
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
                 },
             });
-            allFilesData = await response.json();
+            listData = await response.json();
         } else {
-            allFilesData = filesData();
+            listData = allFilesData()[productType()];
         }
 
-        if (!allFilesData) return false; // needs to throw error
+        if (!listData) return false; // needs to throw error
 
-        let selectFilesData;
+        let selectListData;
 
         if (level() == '2') {
-            selectFilesData = allFilesData;
+            selectListData = listData;
         } else if (level() == '3') {
-            selectFilesData = Object.entries(allFilesData).reduce(
+            selectListData = Object.entries(listData).reduce(
                 (acc, [key, value]) => {
                     const fnParts = key.split('_');
                     if (fnParts[fnParts.length - 1] == productCode())
@@ -392,10 +401,10 @@ const App = () => {
             );
         }
 
-        const sortedFilesData = Object.keys(selectFilesData)
+        const sortedFilesData = Object.keys(selectListData)
             .sort()
             .reduce((obj, key) => {
-                obj[key] = selectFilesData[key];
+                obj[key] = selectListData[key];
                 return obj;
             }, {});
 
@@ -588,7 +597,7 @@ const App = () => {
         let updatedList = await response.json();
 
         // Object.entries(updateData).forEach(([key, value]) => {
-        generateTimeFilePrefixes(true);
+        generateProductFilePrefixes(true);
         // timeFilePrefixes().push(key);
         // filesData()[key] = value;
         // });
@@ -650,7 +659,6 @@ const App = () => {
                 },
                 body: JSON.stringify(data),
             });
-
             console.log(data);
 
             const responseBody = await r.json();
@@ -662,7 +670,7 @@ const App = () => {
     /////////////////////////////////////////////////
 
     onMount(async () => {
-        const filePrefixes = await generateTimeFilePrefixes(false, true);
+        const filePrefixes = (await generateAllFilePrefixes())[productType()];
         const prefix = filePrefixes[filePrefixes.length - 1];
 
         findMaxTiltIndex(prefix);
@@ -860,7 +868,7 @@ const App = () => {
         ) {
             if (!ensureProduct()) return false;
             console.log('DEBUG: Inside level 2 createEffect...');
-            const newFilePrefixes = await generateTimeFilePrefixes();
+            const newFilePrefixes = await generateProductFilePrefixes();
             setFilePrefix(newFilePrefixes[newFilePrefixes.length - 1]);
             const currentFile = filesData()[filePrefix()];
             setMaxTiltIndex(currentFile.sweeps - 1);
@@ -893,7 +901,7 @@ const App = () => {
         ) {
             // if (!ensureProduct()) return false;
             console.log('DEBUG: Inside level 3B createEffect...');
-            const newFilePrefixes = await generateTimeFilePrefixes();
+            const newFilePrefixes = await generateProductFilePrefixes();
             setFilePrefix(newFilePrefixes[newFilePrefixes.length - 1]);
             setTiltIndex(0);
             useDebounceTimeIndex(setTimeIndex(newFilePrefixes.length - 1));

@@ -47,18 +47,20 @@ def handle_flag_post():
 @app.route("/list/", methods=["GET"])
 def handle_list_get():
 
-    ###################### JUST FOR TESTING ######################
-    with open("public/nexrad_level2_reflectivity_files_mod.json", "r") as f:
-        mod = f.read()
+    # ###################### JUST FOR TESTING ######################
+    # with open("public/lists/nexrad_level2_reflectivity_files_mod.json", "r") as f:
+    #     mod = f.read()
 
-    with open("public/nexrad_level2_reflectivity_files.json", "w") as f:
-        f.write(mod)
-        print("written to file.")
-    ##############################################################
+    # with open("public/lists/nexrad_level2_reflectivity_files.json", "w") as f:
+    #     f.write(mod)
+    #     print("written to file.")
+    # ##############################################################
 
     data = "{}"
     try:
-        with open("public/nexrad_level2_reflectivity_files.json", "r") as f:
+        with open(
+            "public/lists/nexrad_level2_reflectivity_files.json", "r"
+        ) as f:
             data = f.read()
         print(data)
     except FileNotFoundError:
@@ -66,52 +68,74 @@ def handle_list_get():
 
     data = {"sent": True, "message": "list GET test received"}
 
-    ###################### JUST FOR TESTING ######################
-    with open("public/nexrad_level2_reflectivity_files_orig.json", "r") as f:
-        orig = f.read()
+    # ###################### JUST FOR TESTING ######################
+    # with open("public/lists/nexrad_level2_reflectivity_files_orig.json", "r") as f:
+    #     orig = f.read()
 
-    with open("public/nexrad_level2_reflectivity_files.json", "w") as f:
-        f.write(orig)
-        print("written to file.")
-    ##############################################################
+    # with open("public/lists/nexrad_level2_reflectivity_files.json", "w") as f:
+    #     f.write(orig)
+    #     print("written to file.")
+    # ##############################################################
 
     return jsonify(data), 200
 
 
-@app.route("/list-all/", methods=["GET"])
+@app.route("/list-all/", methods=["GET", "OPTIONS"])
 def handle_list_all_get():
 
-    ###################### JUST FOR TESTING ######################
-    with open("public/lists/nexrad_level2_reflectivity_files_mod.json", "r") as f:
-        mod = f.read()
+    # ###################### JUST FOR TESTING ######################
+    # with open(
+    #     "public/lists/nexrad_level2_reflectivity_files_mod.json", "r"
+    # ) as f:
+    #     mod = f.read()
 
-    with open("public/lists/nexrad_level2_reflectivity_files.json", "w") as f:
-        f.write(mod)
-        print("written to file.")
-    ##############################################################
+    # with open("public/lists/nexrad_level2_reflectivity_files.json", "w") as f:
+    #     f.write(mod)
+    #     print("written to file.")
+    # ##############################################################
 
-    data = []
+    data = {}
 
     try:
-        with open("public/lists/nexrad_level2_reflectivity_files.json", "r") as f:
-            data.append(json.load(f))
-        with open("public/lists/nexrad_level3_hydrometeor_files.json", "r") as g:
-            data.append(json.load(g))
-        with open("public/lists/nexrad_level3_precipitation_files.json", "r") as h:
-            data.append(json.load(h))
+        with open(
+            "public/lists/nexrad_level2_reflectivity_files_orig.json", "r"  # FILENAME FOR TESTING
+        ) as f:
+            data["reflectivity"] = json.load(f)
+        with open(
+            "public/lists/nexrad_level3_hydrometeor_files.json", "r"
+        ) as g:
+            data["hydrometeor"] = json.load(g)
+        with open(
+            "public/lists/nexrad_level3_precipitation_files.json", "r"
+        ) as h:
+            data["precipitation"] = json.load(h)
     except FileNotFoundError as e:
         print(e)
-        data = []
+        data = {}
 
     # data = {"sent": True, "message": "list GET test received"}
 
     ###################### JUST FOR TESTING ######################
-    with open("public/lists/nexrad_level2_reflectivity_files_orig.json", "r") as f:
+    with open(
+        "public/lists/nexrad_level2_reflectivity_files_mod.json", "r"
+    ) as f:
         orig = f.read()
 
     with open("public/lists/nexrad_level2_reflectivity_files.json", "w") as f:
         f.write(orig)
         print("written to file.")
+
+    with open("public/flags/update_flags.json", "r") as f:
+        flags = json.load(f)
+        flags["updated"] = 1
+        flags["updates"]["reflectivity"] = 1
+        
+
+    with open("public/flags/update_flags.json", "w") as f:
+        json.dump(flags, f)
+        print("written to file.")
+
+
     ##############################################################
 
     print(data)
