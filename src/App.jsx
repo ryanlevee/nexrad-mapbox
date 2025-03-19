@@ -321,8 +321,8 @@ const App = () => {
 
     // const apiEndpoint = 'https://abcdef123.execute-api.us-east-1.amazonaws.com/prod/check-updates'; // example
     // const apiEndpoint = `${listsPath}/updated_data.json`;
-    // const apiEndpointTest = 'http://localhost:8080';
-    const apiEndpointTest = 'https://b48d-2603-8000-2af0-94b0-c883-ffaa-97d0-8668.ngrok-free.app';
+    const apiEndpointTest = 'https://nexrad-mapbox-backend.onrender.com';
+    // const apiEndpointTest = 'http://localhost:4000';
 
     const getAllListData = async () => {
         const response = await fetch(`${apiEndpointTest}/list-all/`, {
@@ -332,7 +332,7 @@ const App = () => {
                 // 'Content-Type': 'application/json', // Add this back if your API expects JSON
             },
         });
-        console.log(response)
+        // console.log(response)
         const allListData = await response.json();
         if (!truthy(allListData)) return false; // needs to throw error
         return allListData;
