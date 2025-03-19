@@ -24,14 +24,12 @@ const App = () => {
     const productTypes = [
         { value: 'reflectivity', label: 'reflectivity (level 2)', level: '2' },
         { value: 'hydrometeor', label: 'hydrometeor (level 3)', level: '3' },
-        { value: 'precipitation', label: 'precipitation (level 3)', level: '3' },
+        {
+            value: 'precipitation',
+            label: 'precipitation (level 3)',
+            level: '3',
+        },
     ];
-
-    const cachedProducts = (() =>
-        productTypes.reduce(
-            (acc, type) => ((acc[type.value] = {}), acc),
-            {}
-        ))();
 
     const mapRef = { current: null };
     const jsonDataCache = {};
@@ -56,7 +54,6 @@ const App = () => {
     const [allProductCodes, setAllProductCodes] = createSignal(null);
 
     const [filePrefix, setFilePrefix] = createSignal('');
-
     const [allPrefixesByCode, setAllPrefixesByCode] = createSignal({});
 
     const [overlayData, setOverlayData] = createSignal({});
@@ -77,6 +74,8 @@ const App = () => {
     let tiltAnimationInterval;
     let forwardAnimationInterval;
     let reverseAnimationInterval;
+    let updateInterval;
+    let mouseMoveListener;
 
     function truthy(item) {
         if (!item) return false;
@@ -461,16 +460,17 @@ const App = () => {
             }
         });
         // console.log('imageCache length AFTER:', Object.keys(imageCache).length);
-    }
+    };
 
     const bulkCacheImages = async () => {
         // console.log('imageCache length BEFORE:', Object.keys(imageCache).length);
+        if (!productCode()) return false;
+
         setCacheCount(0);
         let imageTotal = 0;
-        const currentProductType = productType();
-        const currentFilesData = allFilesData()[currentProductType];
+        const currentFilesData = allFilesData()[productType()];
 
-        const prefixes = allPrefixesByCode()[currentProductType][productCode()];
+        const prefixes = allPrefixesByCode()[productType()][productCode()];
         const imagePromises = [];
 
         let i = 0;
@@ -478,7 +478,7 @@ const App = () => {
             const maxIdx = currentFilesData[prefix].sweeps - 1;
 
             for (let iTilt = 0; iTilt <= maxIdx; iTilt++) {
-                const imageKey = `${prefix}_${currentProductType}_idx${iTilt}`;
+                const imageKey = `${prefix}_${productType()}_idx${iTilt}`;
                 if (!imageCache[imageKey]) {
                     imagePromises.push(cacheImage(imageKey, i++));
                     setLoadingBar([...loadingBar(), imageTotal]);
@@ -486,8 +486,6 @@ const App = () => {
                 setCacheTotal(imageTotal++);
             }
         });
-
-        cachedProducts[currentProductType][productCode()] = true;
 
         if (imagePromises.length) {
             // console.log('updating image cache...');
@@ -525,11 +523,15 @@ const App = () => {
                         `Invalid image coordinates in ${fileKey}.json`
                     );
                 }
+            })
+            .catch(e => {
+                console.error('GET 404: Using current json instead. Error:', e);
+                mapRef.current
+                    .getSource('radar')
+                    .setCoordinates(getCoordinates(overlayData()));
             });
     };
 
-    let updateInterval;
-    let mouseMoveListener;
 
     onMount(async () => {
         const allListData = await getAllListData();
@@ -877,7 +879,6 @@ const App = () => {
                                     allPrefixesByCode={allPrefixesByCode}
                                     isOverlayLoaded={isOverlayLoaded}
                                     setupOverlay={setupOverlay}
-                                    cachedProducts={cachedProducts}
                                     handleCacheImages={handleCacheImages}
                                 ></CodeSelect>
                             )}
