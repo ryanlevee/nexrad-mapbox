@@ -5,12 +5,38 @@ const CodeSelect = props => {
         setProductCode,
         pauseAllAnimations,
         productType,
+        L2CODE,
+        useDebounceTimeIndex,
+        setTimeIndex,
+        allPrefixesByCode,
+        isOverlayLoaded,
+        setupOverlay,
+        cachedProducts,
+        handleCacheImages,
     } = props;
 
-    const handleChange = event => {
+    const handleChange = async event => {
         pauseAllAnimations();
-        if (event.target.value.count != 0)
+
+        if (productCode() == event.target.value.value) return false;
+
+        if (event.target.value.count != 0) {
             setProductCode(event.target.value.value);
+
+            if (!cachedProducts[productType()][productCode()]) {
+                await handleCacheImages();
+            }
+
+            useDebounceTimeIndex(
+                setTimeIndex(
+                    allPrefixesByCode()[productType()][productCode()].length - 1
+                )
+            );
+
+            if (isOverlayLoaded()) {
+                setupOverlay();
+            }
+        }
     };
 
     return (
@@ -18,7 +44,7 @@ const CodeSelect = props => {
             <button id="code-select" class="dropbtn">
                 <div id="code-select-inner-div">
                     <div>
-                        {productCode()
+                        {productCode() && productCode() != L2CODE
                             ? codeOptions().find(
                                   opt => opt.value == productCode()
                               ).label
@@ -29,7 +55,7 @@ const CodeSelect = props => {
             </button>
             <div class="dropup-content">
                 {codeOptions().map(option => {
-                    const opacity = option.count == 0 ? 0.5 : 1;
+                    const opacity = !option.count ? 0.5 : 1;
                     return (
                         <div style={{ opacity: opacity }}>
                             <div

@@ -1,4 +1,3 @@
-// import fs from 'fs';
 import {
     onMount,
     createSignal,
@@ -15,12 +14,12 @@ import CodeSelect from './CodeSelect';
 import TypeSelect from './TypeSelect';
 import ResetBtn from './ResetBtn';
 import UpdateAlert from './UpdateAlert';
-import { Utl } from './utils';
 
 const App = () => {
     const basePath = '.';
     const plotsPathPrefix = `${basePath}/plots_level`;
-    const listsPath = `${basePath}/lists`;
+    const imgExt = 'png';
+    const mapOrigin = [-118.8529281616211, 45.690650939941406];
 
     const productTypes = [
         { value: 'reflectivity', label: 'reflectivity', level: '2' },
@@ -38,41 +37,54 @@ const App = () => {
     const jsonDataCache = {};
     const imageCache = {};
     const intervalMs = 500;
+    const L2CODE = 'V06';
 
     const [isOverlayLoaded, setIsOverlayLoaded] = createSignal(false);
     const [isCaching, setIsCaching] = createSignal(false);
-    const [loadedAnyway, setLoadedAnyway] = createSignal(false);
+
+    const [cacheCount, setCacheCount] = createSignal(0);
+    const [cacheTotal, setCacheTotal] = createSignal(0);
 
     const [level, setLevel] = createSignal('2');
     const [plotsPath, setPlotsPath] = createSignal(
         `${plotsPathPrefix}${level()}`
     );
 
-    const [productCode, setProductCode] = createSignal(null);
     const [productType, setProductType] = createSignal('reflectivity');
-
-    const animationSpeeds = [0.5, 1, 1.5, 2, 2.5, 3];
-
+    const [productCode, setProductCode] = createSignal(L2CODE);
     const [codeOptions, setCodeOptions] = createSignal(null);
     const [allProductCodes, setAllProductCodes] = createSignal(null);
+
     const [filePrefix, setFilePrefix] = createSignal('');
+    // const [activePrefixes, setActivePrefixes] = createSignal(null);
+    const [allPrefixesByCode, setAllPrefixesByCode] = createSignal({});
+
     const [overlayData, setOverlayData] = createSignal({});
-    const [filesData, setFilesData] = createSignal(null);
     const [allFilesData, setAllFilesData] = createSignal({});
-    const [timeFilePrefixes, setTimeFilePrefixes] = createSignal([]);
-    const [allTimeFilePrefixes, setAllTimeFilePrefixes] = createSignal({});
+
     const [tiltIndex, setTiltIndex] = createSignal(0);
     const [timeIndex, setTimeIndex] = createSignal(null);
     const [maxTiltIndex, setMaxTiltIndex] = createSignal(null);
+
     const [moveEvent, setMoveEvent] = createSignal(null);
+    const [loadingBar, setLoadingBar] = createSignal([]);
 
     const [isTiltPlaying, setIsTiltPlaying] = createSignal(false);
     const [isTimePlaying, setIsTimePlaying] = createSignal(false);
     const [isTimePlayingReverse, setIsTimePlayingReverse] = createSignal(false);
     const [timeAnimationSpeed, setTimeAnimationSpeed] = createSignal(1);
+    const animationSpeeds = [0.5, 1, 1.5, 2, 2.5, 3];
     let tiltAnimationInterval;
-    let animationInterval;
+    let forwardAnimationInterval;
     let reverseAnimationInterval;
+
+    function truthy(item) {
+        if (!item) return false;
+        else if (Array.isArray(item)) return item.some(truthy);
+        else if (typeof item == 'object')
+            return Object.values(item).some(truthy);
+        return true;
+    }
 
     function useDebounce(signalSetter, delay) {
         let timerHandle;
@@ -92,10 +104,20 @@ const App = () => {
     const useDebounceTimeAnimation = useDebounce(timeIndex, 7);
 
     const setupOverlay = () => {
-        const newFilePrefix = timeFilePrefixes()[timeIndex()];
+        console.log('running setupOverlay()');
+        const currentProductPrefixes =
+            allPrefixesByCode()[productType()][productCode()];
+
+        const newFilePrefix = currentProductPrefixes[timeIndex()];
+
         setFilePrefix(newFilePrefix);
 
-        const newFileData = filesData()[newFilePrefix];
+        const currentFilesData = allFilesData()[productType()];
+
+        console.log('currentFilesData:', currentFilesData);
+        console.log('newFilePrefix:', newFilePrefix);
+
+        const newFileData = currentFilesData[newFilePrefix];
         const newMaxTiltIndex = newFileData.sweeps - 1;
 
         if (tiltIndex() > newMaxTiltIndex) {
@@ -111,13 +133,12 @@ const App = () => {
         const wasPlayingReverse = isTimePlayingReverse();
 
         if (wasPlaying) {
-            pauseTimeAnimation();
+            pauseForwardTimeAnimation();
         } else if (wasPlayingReverse) {
             pauseReverseTimeAnimation();
         }
 
         if (speed) {
-            console.log(speed);
             setTimeAnimationSpeed(speed);
         } else {
             setTimeAnimationSpeed(currentSpeed => {
@@ -140,8 +161,11 @@ const App = () => {
         if (
             (level() == '2' &&
                 productType() == 'reflectivity' &&
-                productCode() == null) ||
-            (level() == '3' && productCode() && tiltIndex() == 0)
+                productCode() == L2CODE) ||
+            (level() == '3' &&
+                productCode() &&
+                productCode() != L2CODE &&
+                tiltIndex() == 0)
         ) {
             return true;
         }
@@ -151,26 +175,26 @@ const App = () => {
     const startForwardTimeAnimation = () => {
         // console.log('playing');
         if (!ensureProduct()) return false;
-        if (!animationInterval) {
+        if (!forwardAnimationInterval) {
             setIsTimePlaying(true);
             setIsTimePlayingReverse(false);
             pauseReverseTimeAnimation();
-            animationInterval = setInterval(async () => {
+            pauseTiltAnimation();
+            forwardAnimationInterval = setInterval(async () => {
                 await useDebounceTimeAnimation(
                     setTimeIndex(prevIndex => {
                         const nextIndex = prevIndex + 1;
-                        return nextIndex >= timeFilePrefixes().length
+                        return nextIndex >=
+                            allPrefixesByCode()[productType()][productCode()]
+                                .length
                             ? 0
                             : nextIndex;
                     })
                 );
                 setupOverlay();
-                // debouncedSetupOverlay();
-                // 'debouncedSetupOverlay() playing animation'
-                // }
             }, intervalMs / timeAnimationSpeed());
         } else {
-            pauseTimeAnimation();
+            pauseForwardTimeAnimation();
         }
     };
 
@@ -180,19 +204,19 @@ const App = () => {
         if (!reverseAnimationInterval) {
             setIsTimePlayingReverse(true);
             setIsTimePlaying(false);
-            pauseTimeAnimation();
+            pauseForwardTimeAnimation();
+            pauseTiltAnimation();
             reverseAnimationInterval = setInterval(async () => {
                 await useDebounceTimeAnimation(
                     setTimeIndex(prevIndex => {
                         const nextIndex = prevIndex - 1;
                         return nextIndex < 0
-                            ? timeFilePrefixes().length - 1
+                            ? allPrefixesByCode()[productType()][productCode()]
+                                  .length - 1
                             : nextIndex;
                     })
                 );
                 setupOverlay();
-                // debouncedSetupOverlay();
-                // 'debouncedSetupOverlay() reverse playing animation'
             }, intervalMs / timeAnimationSpeed());
         } else {
             pauseReverseTimeAnimation();
@@ -200,8 +224,7 @@ const App = () => {
     };
 
     const startTiltAnimation = () => {
-        // if (!ensureProduct()) return false;
-        console.log('tiltAnimationInterval:', tiltAnimationInterval);
+        // console.log('tiltAnimationInterval:', tiltAnimationInterval);
 
         if (!tiltAnimationInterval) {
             pauseAllAnimations();
@@ -211,7 +234,7 @@ const App = () => {
                 await useDebounceTiltAnimation(
                     setTiltIndex(prevIndex => {
                         const nextIndex = prevIndex + 1;
-                        return nextIndex >= maxTiltIndex() ? 0 : nextIndex;
+                        return nextIndex > maxTiltIndex() ? 0 : nextIndex;
                     })
                 );
                 updateOverlay();
@@ -227,10 +250,10 @@ const App = () => {
         tiltAnimationInterval = null;
     };
 
-    const pauseTimeAnimation = () => {
+    const pauseForwardTimeAnimation = () => {
         setIsTimePlaying(false);
-        clearInterval(animationInterval);
-        animationInterval = null;
+        clearInterval(forwardAnimationInterval);
+        forwardAnimationInterval = null;
     };
 
     const pauseReverseTimeAnimation = () => {
@@ -240,7 +263,7 @@ const App = () => {
     };
 
     const pauseAllAnimations = () => {
-        pauseTimeAnimation();
+        pauseForwardTimeAnimation();
         pauseReverseTimeAnimation();
         pauseTiltAnimation();
     };
@@ -248,18 +271,23 @@ const App = () => {
     const moveForwardTimeFrame = async () => {
         if (!ensureProduct()) return false;
         pauseAllAnimations();
-        if (timeIndex() == timeFilePrefixes().length - 1) {
+        if (
+            timeIndex() ==
+            allPrefixesByCode()[productType()][productCode()].length - 1
+        ) {
             skipToFirstTimeFrame();
         } else {
             await useDebounceTimeAnimation(
                 setTimeIndex(prevIndex =>
-                    Math.min(prevIndex + 1, timeFilePrefixes().length - 1)
+                    Math.min(
+                        prevIndex + 1,
+                        allPrefixesByCode()[productType()][productCode()]
+                            .length - 1
+                    )
                 )
             );
+            setupOverlay();
         }
-        setupOverlay();
-        // debouncedSetupOverlay();
-        // 'debouncedSetupOverlay() move forward btn'
     };
 
     const moveBackwardTimeFrame = async () => {
@@ -271,19 +299,17 @@ const App = () => {
             await useDebounceTimeAnimation(
                 setTimeIndex(prevIndex => Math.max(prevIndex - 1, 0))
             );
+            setupOverlay();
         }
-        setupOverlay();
-        // debouncedSetupOverlay();
-        // 'debouncedSetupOverlay() move backward btn'
     };
 
     const skipToLastTimeFrame = async () => {
         if (!ensureProduct()) return false;
         pauseAllAnimations();
-        setTimeIndex(timeFilePrefixes().length - 1);
+        setTimeIndex(
+            allPrefixesByCode()[productType()][productCode()].length - 1
+        );
         setupOverlay();
-        // debouncedSetupOverlay();
-        // 'debouncedSetupOverlay() skip to first btn'
     };
 
     const skipToFirstTimeFrame = async () => {
@@ -291,207 +317,65 @@ const App = () => {
         pauseAllAnimations();
         await useDebounceTimeAnimation(setTimeIndex(0));
         setupOverlay();
-        // debouncedSetupOverlay();
-        // 'debouncedSetupOverlay() skip to last btn'
     };
 
     // const apiEndpoint = 'https://abcdef123.execute-api.us-east-1.amazonaws.com/prod/check-updates'; // example
     // const apiEndpoint = `${listsPath}/updated_data.json`;
     const apiEndpointTest = 'http://localhost:4000';
 
-    const generateAllFilePrefixes = async () => {
-        let allListData = {};
-
+    const getAllListData = async () => {
         const response = await fetch(`${apiEndpointTest}/list-all/`, {
             method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            // headers: {
+            //     'Content-Type': 'application/json',
+            // },
         });
-        allListData = await response.json();
+        const allListData = await response.json();
+        if (!truthy(allListData)) return false; // needs to throw error
+        return allListData;
+    };
 
-        if (!Utl.truthy(allListData)) return false; // needs to throw error
-
-        // console.log('allListData:', allListData);
-
+    const generateAllPrefixesByCode = allListData => {
         let processedListData = {};
-        let fileNames = {};
+        let prefixesByCode = {};
 
         const productTypeNames = productTypes.map(p => p.value);
 
-        for (let product of productTypeNames) {
-            // console.log('allListData[product]:', allListData[product]);
-
-            // processedListData[product] = Object.entries(
-            //     allListData[product]
-            // ).reduce((acc, [key, value]) => {
-            //     // const nameParts = key.split('_');
-            //     // if (nameParts[nameParts.length - 1] == productCode())
-            //         acc[key] = value;
-            //     return acc;
-            // }, {});
-
-            // console.log('processedListData[product]:', processedListData[product]);
-
+        productTypeNames.forEach(product => {
             const productListData = allListData[product];
 
-            processedListData[product] = Object.keys(productListData)
-                .sort()
-                .reduce((obj, key) => {
-                    obj[key] = productListData[key];
-                    return obj;
-                }, {});
+            processedListData[product] = productListData;
 
+            prefixesByCode[product] = Object.keys(productListData).reduce(
+                (acc, key) => {
+                    const prefix = key.replace('.png', '');
 
-            fileNames[product] = Object.keys(productListData).reduce(
-                (acc, fileName) => {
-                    const prefix = fileName.replace('.png', '');
-                    acc.push(prefix);
+                    if (product == 'reflectivity') {
+                        if (!acc[L2CODE]) acc[L2CODE] = [];
+                        acc[L2CODE].push(prefix);
+                    } else {
+                        const nameParts = prefix.split('_');
+                        const code = nameParts[nameParts.length - 1];
+                        if (!acc[code]) acc[code] = [];
+                        acc[code].push(prefix);
+                    }
+
                     return acc;
                 },
                 []
             );
-        }
-
-        console.log('processedListData:', processedListData);
-        console.log('fileNames:', fileNames);
-
-        if (!Utl.truthy(fileNames)) {
-            setAllTimeFilePrefixes({});
-            return;
-        }
+        });
 
         setAllFilesData(processedListData);
-        setAllTimeFilePrefixes(fileNames);
-        return fileNames;
-    };
-
-    const generateProductFilePrefixes = async (update = false) => {
-        let listData = [];
-
-        if (update) {
-            // `/${listsPath}/nexrad_level${level()}_${productType()}_files.json`
-            const response = await fetch(`${apiEndpointTest}/list/`, {
-                // need to add path for each product
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-            listData = await response.json();
-        } else {
-            listData = allFilesData()[productType()];
-        }
-
-        if (!listData) return false; // needs to throw error
-
-        let selectListData;
-
-        if (level() == '2') {
-            selectListData = listData;
-        } else if (level() == '3') {
-            selectListData = Object.entries(listData).reduce(
-                (acc, [key, value]) => {
-                    const fnParts = key.split('_');
-                    if (fnParts[fnParts.length - 1] == productCode())
-                        acc[key] = value;
-                    return acc;
-                },
-                {}
-            );
-        }
-
-        const sortedFilesData = Object.keys(selectListData)
-            .sort()
-            .reduce((obj, key) => {
-                obj[key] = selectListData[key];
-                return obj;
-            }, {});
-
-        setFilesData(sortedFilesData);
-        const fileNames = Object.keys(sortedFilesData);
-
-        if (!fileNames || fileNames.length === 0) {
-            setTimeFilePrefixes([]);
-            return;
-        }
-
-        // const latestFileName = fileNames[fileNames.length - 1];
-        // const latestPrefix = latestFileName.replace('.png', '');
-        // const latestTimePart = latestPrefix.split('_')[1];
-        // const latestYear = latestPrefix.substring(4, 8);
-        // const latestMonth = latestPrefix.substring(8, 10);
-        // const latestDay = latestPrefix.substring(10, 12);
-        // const latestHour = latestTimePart.substring(0, 2);
-        // const latestMinute = latestTimePart.substring(2, 4);
-        // const latestSecond = latestTimePart.substring(4, 6);
-
-        // const realTime = false;
-
-        // let latestFileTime;
-
-        // if (realTime) {
-        //     latestFileTime = new Date();
-        // } else {
-        //     latestFileTime = new Date(
-        //         Date.UTC(
-        //             parseInt(latestYear, 10),
-        //             parseInt(latestMonth, 10) - 1,
-        //             parseInt(latestDay, 10),
-        //             parseInt(latestHour, 10),
-        //             parseInt(latestMinute, 10),
-        //             parseInt(latestSecond, 10)
-        //         )
-        //     );
-        // }
-
-        // const threeHoursBeforeLatest = new Date(
-        //     latestFileTime.getTime() - 3 * 60 * 60 * 1000
-        // );
-
-        const filteredPrefixes = fileNames.reduce((acc, fileName) => {
-            const prefix = fileName.replace('.png', '');
-            // const timePart = prefix.split('_')[1];
-            // const year = prefix.substring(4, 8);
-            // const month = prefix.substring(8, 10);
-            // const day = prefix.substring(10, 12);
-            // const hour = timePart.substring(0, 2);
-            // const minute = timePart.substring(2, 4);
-            // const second = timePart.substring(4, 6);
-
-            // const fileTime = new Date(
-            //     Date.UTC(
-            //         parseInt(year, 10),
-            //         parseInt(month, 10) - 1,
-            //         parseInt(day, 10),
-            //         parseInt(hour, 10),
-            //         parseInt(minute, 10),
-            //         parseInt(second, 10)
-            //     )
-            // );
-
-            // if (
-            //     fileTime >= threeHoursBeforeLatest &&
-            //     fileTime <= latestFileTime
-            // ) {
-            acc.push(prefix);
-            // }
-            return acc;
-        }, []);
-        // console.log('filteredPrefixes:', filteredPrefixes);
-
-        setTimeFilePrefixes(filteredPrefixes);
-        return filteredPrefixes;
-    };
-
-    const findMaxTiltIndex = prefix => {
-        if (filesData() && prefix in filesData()) {
-            setMaxTiltIndex(filesData()[prefix].sweeps - 1);
-        }
+        setAllPrefixesByCode(prefixesByCode);
+        return prefixesByCode;
     };
 
     const generateProductCodes = async () => {
-        const response = await fetch(`${basePath}/codes/options.json`);
+        const response = await fetch(`${apiEndpointTest}/code/`, {
+            method: 'GET',
+        });
+
         const codes = await response.json();
         setAllProductCodes(codes);
     };
@@ -502,27 +386,133 @@ const App = () => {
         }
         pauseAllAnimations();
         Object.keys(imageCache).forEach(key => delete imageCache[key]);
+        Object.keys(jsonDataCache).forEach(key => delete jsonDataCache[key]);
     });
 
-    const imgExt = '.png';
-    const mapOrigin = [-118.8529281616211, 45.690650939941406];
+    const [isUpToDate, setIsUpToDate] = createSignal(false);
 
-    // const minLon = -125.2377333903419
-    // const maxLon = -112.46812293290029
-    // const minLat = 41.41970157759364
-    // const maxLat = 49.65414849522832
+    const cacheUpdatedImages = updates => {
+        Object.entries(updates).forEach(([key, value]) => {
+            if (value) {
+                // console.log(allFilesData()[productType()]);
+            }
+        });
+    };
 
-    // const testCoords = {
-    //     nw: [minLon, maxLat],
-    //     ne: [maxLon, maxLat],
-    //     se: [maxLon, minLat],
-    //     sw: [minLon, minLat],
-    // };
+    ////////////////// API TESTING //////////////////
 
-    const preloadImage = url => {
+    const handleUpdates = async product => {
+        console.log('updating lists...');
+
+        const response = await fetch(
+            `${apiEndpointTest}/list/${level()}/${product}/`,
+            {
+                method: 'GET',
+            }
+        );
+
+        let updatedList = await response.json();
+
+        if (typeof updatedList === 'string') {
+            try {
+                updatedList = JSON.parse(updatedList);
+            } catch (parseError) {
+                console.error('Error parsing JSON string:', parseError);
+                return;
+            }
+        }
+
+        Object.entries(updatedList).forEach(([key, value]) => {
+            const code = key.slice(key.length - 3);
+            allPrefixesByCode()[product][code] = key;
+        });
+
+        allFilesData()[product] = updatedList;
+        // setActivePrefixes(Object.keys(updatedList));
+        const consistentIndex = Object.keys(updatedList).indexOf(filePrefix());
+        setTimeIndex(consistentIndex);
+        // if (!isCaching()) handleCacheImages()
+
+        console.log('allPrefixesByCode()', allPrefixesByCode());
+        console.log('allFilesData()', allFilesData());
+        // console.log('activePrefixes()', activePrefixes());
+
+        return true;
+    };
+
+    const checkUpdates = async () => {
+        console.log('Checking for updates...');
+
+        const newListData = await getAllListData()
+        generateProductCodes()
+        generateAllPrefixesByCode(newListData)
+
+        console.log('updates checked')
+
+        // console.log(prefixesByCode)
+
+        // const response = await fetch(`${apiEndpointTest}/flag/`, {
+        //     method: 'GET',
+        // });
+
+        // let data = await response.json();
+
+        // if (typeof data === 'string') {
+        //     try {
+        //         data = JSON.parse(data);
+        //     } catch (parseError) {
+        //         console.error('Error parsing JSON string:', parseError);
+        //         return;
+        //     }
+        // }
+
+        // let updateComplete = false;
+        // console.log(data);
+
+        // const updatedProduct = Object.entries(data.updates)
+        //     .map(([key, value]) => (value ? key : false))
+        //     .filter(Boolean);
+
+        // if (updatedProduct.length) {
+        //     updatedProduct.forEach(product => {
+        //         setIsUpToDate(false);
+        //         updateComplete = handleUpdates(product);
+        //         data.updates[product] = 0;
+        //     });
+        // } else {
+        //     console.log('No updates');
+        // }
+
+        // if (!updateComplete) {
+        //     setIsUpToDate(true);
+        //     return false;
+        // }
+
+        // //// mimic sending POST request to API:
+
+        // try {
+        //     const r = await fetch(`${apiEndpointTest}/flag/`, {
+        //         method: 'POST',
+        //         headers: {
+        //             'Content-Type': 'application/json',
+        //         },
+        //         body: JSON.stringify(data),
+        //     });
+
+        //     const responseBody = await r.json();
+        //     console.log(responseBody);
+        //     setIsUpToDate(true);
+        // } catch (error) {
+        //     console.error('Error checking updates:', error);
+        // }
+    };
+
+    const preloadImage = imageKey => {
         // console.log('preloading image...');
+        const apiRoute = `${apiEndpointTest}/data/${level()}/${imageKey}/${imgExt}`;
+
         return new Promise((resolve, reject) => {
-            fetch(url)
+            fetch(apiRoute)
                 .then(response => response.blob())
                 .then(blob => {
                     const reader = new FileReader();
@@ -536,163 +526,171 @@ const App = () => {
         });
     };
 
-    const cacheImage = imageKey => {
-        return fetch(`/${plotsPath()}/${imageKey}.png`)
-            .then(response => response.blob())
-            .then(blob => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    // console.log(`saving ${imageKey} to cache`);
-                    imageCache[imageKey] = reader.result;
-                };
-                reader.readAsDataURL(blob);
-                return true;
-            });
+    const cacheImage = async (imageKey, i) => {
+        return new Promise((resolve, reject) => {
+            const apiRoute = `${apiEndpointTest}/data/${level()}/${imageKey}/${imgExt}`;
+
+            fetch(apiRoute, {
+                method: 'GET',
+                // headers: {
+                //     'Content-Type': 'image/png',
+                // },
+            })
+                .then(response => response.blob())
+                .then(blob => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        imageCache[imageKey] = reader.result;
+                        setCacheCount(i);
+                        // console.log(cacheCount())
+                        // console.log(i)
+                        resolve(true); // Resolve the Promise when the image is loaded and cached
+                    };
+                    reader.onerror = error => {
+                        console.error(
+                            `Error reading blob for ${imageKey}:`,
+                            error
+                        );
+                        reject(error); // Reject the Promise if there's an error
+                    };
+                    reader.readAsDataURL(blob);
+                })
+                .catch(error => {
+                    console.error(`Error fetching image ${imageKey}:`, error);
+                    reject(error); // Reject the Promise if the fetch fails
+                });
+        });
     };
 
-    const cacheAllImages = async () => {
+    const bulkCacheImages = async () => {
+        setCacheCount(0);
+        let imageTotal = 0;
+        const currentProductType = productType();
+        const currentProductCode = productCode();
+        const currentFilesData = allFilesData()[currentProductType];
         console.log(
-            `Caching all ${productType()}:${productCode() ?? ''} images...`
+            `Caching ${currentProductType}:${currentProductCode} images...`
         );
 
-        const prefixes = timeFilePrefixes();
-        const promises = [];
+        const prefixes = allPrefixesByCode()[currentProductType][productCode()];
+        const imagePromises = [];
 
-        for (let prefix of prefixes) {
-            const maxIdx = filesData()[prefix].sweeps - 1;
+        console.log('prefixes:', prefixes);
+
+        let i = 0;
+        prefixes.forEach(prefix => {
+            const maxIdx = currentFilesData[prefix].sweeps - 1;
 
             for (let iTilt = 0; iTilt <= maxIdx; iTilt++) {
-                const imageKey = `${prefix}_${productType()}_idx${iTilt}`;
-                promises.push(cacheImage(imageKey));
-            }
-        }
-
-        if (level() == '3') cachedProducts[productType()][productCode()] = true;
-
-        return promises;
-    };
-
-    const [isUpToDate, setIsUpToDate] = createSignal(true);
-
-    const cacheUpdatedImages = updates => {
-        Object.entries(updates).forEach(([key, value]) => {
-            if (value) {
-                // console.log(`${key}:${value}`)
-                // timeFilePrefixes().push()
-                console.log(filesData());
+                const imageKey = `${prefix}_${currentProductType}_idx${iTilt}`;
+                if (!imageCache[imageKey]) {
+                    imagePromises.push(cacheImage(imageKey, i++));
+                    setLoadingBar([...loadingBar(), imageTotal]);
+                }
+                setCacheTotal(imageTotal++);
             }
         });
+
+        cachedProducts[currentProductType][currentProductCode] = true;
+
+        await Promise.all(imagePromises);
+        console.log(
+            `All ${currentProductType}:${currentProductCode} images cached.`
+        );
     };
 
-    ////////////////// API TESTING //////////////////
-
-    const handleUpdates = async updateData => {
-        const response = await fetch(`${apiEndpointTest}/list/`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
-
-        let updatedList = await response.json();
-
-        // Object.entries(updateData).forEach(([key, value]) => {
-        generateProductFilePrefixes(true);
-        // timeFilePrefixes().push(key);
-        // filesData()[key] = value;
-        // });
-
-        console.log(timeFilePrefixes());
-        console.log(filesData());
-        return true;
+    const handleCacheImages = async () => {
+        // clearInterval(updateInterval);
+        setIsCaching(true);
+        await bulkCacheImages();
+        setIsCaching(false);
+        // if (!updateInterval) updateInterval = setInterval(checkUpdates, 10000); // 2 minutes = 120000
     };
 
-    const checkUpdates = async () => {
-        console.log('Checking for updates...');
-        const response = await fetch(`${apiEndpointTest}/flag/`, {
+    const getJson = async (fileKey, addToMap = true) => {
+        const apiRoute = `${apiEndpointTest}/data/${level()}/${fileKey}/json`;
+        return fetch(apiRoute, {
             method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        }); // my AWS API endpoint
+        })
+            .then(response => response.json())
+            .then(data => {
+                setOverlayData(data);
+                jsonDataCache[fileKey] = data;
 
-        let data = await response.json();
+                if (!addToMap) return true;
 
-        if (typeof data === 'string') {
-            try {
-                data = JSON.parse(data); // Parse again if it's a string
-            } catch (parseError) {
-                console.error('Error parsing JSON string:', parseError);
-                return; // Exit the function if parsing fails
-            }
-        }
-
-        console.log(data);
-
-        let updateComplete = false;
-
-        if (data.updated) {
-            const updates = data.updates;
-            const updatedProduct = updates[productType()];
-
-            if (updatedProduct) {
-                setIsUpToDate(false);
-                updateComplete = handleUpdates(updatedProduct);
-                data.updates[productType()] = 0;
-            }
-        }
-
-        setIsUpToDate(true);
-
-        if (!updateComplete) {
-            return false;
-        }
-
-        //// mimic sending POST request to API:
-        data.updated = 0;
-
-        try {
-            const r = await fetch(`${apiEndpointTest}/flag/`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(data),
+                if (data) {
+                    mapRef.current
+                        .getSource('radar')
+                        .setCoordinates(getCoordinates(data));
+                } else {
+                    console.error(
+                        `Invalid image coordinates in ${fileKey}.json`
+                    );
+                }
             });
-            console.log(data);
-
-            const responseBody = await r.json();
-            console.log(responseBody);
-        } catch (error) {
-            console.error('Error checking updates:', error);
-        }
     };
-    /////////////////////////////////////////////////
+
+    // const bulkCacheJson = () => {
+    //     console.log('Caching all json...');
+
+    //     productTypes.forEach(product => {
+    //         const type = product.value;
+    //         const lvl = product.level;
+    //         const prefixes = allFilesData()[type];
+
+    //         Object.entries(prefixes).forEach(([key, value]) => {
+    //             const sweeps = value.sweeps - 1;
+
+    //             for (let i = 0; i <= sweeps; i++) {
+    //                 const fileKey = `${key}_${type}_idx${i}`;
+    //                 const apiRoute = `${apiEndpointTest}/data/${lvl}/${fileKey}/json`;
+
+    //                 fetch(apiRoute, {
+    //                     method: 'GET',
+    //                 })
+    //                     .then(response => response.json())
+    //                     .then(data => {
+    //                         jsonDataCache[fileKey] = data;
+    //                     });
+    //             }
+    //         });
+    //     });
+    // };
+
+    let isInitialRun = true;
+    let updateInterval;
+    let mouseMoveListener;
 
     onMount(async () => {
-        const filePrefixes = (await generateAllFilePrefixes())[productType()];
-        const prefix = filePrefixes[filePrefixes.length - 1];
+        const allListData = await getAllListData();
+        const allPrefixes = generateAllPrefixesByCode(allListData);
+        const currentPrefixes = allPrefixes[productType()][productCode()];
+        // setActivePrefixes(currentPrefixes);
+        const currentPrefix = currentPrefixes[currentPrefixes.length - 1];
+        setMaxTiltIndex(allListData[productType()][currentPrefix].sweeps - 1);
+        setTimeIndex(currentPrefixes.length - 1);
 
-        findMaxTiltIndex(prefix);
-        setIsCaching(true);
-        await cacheAllImages();
-        setIsCaching(false);
+        await handleCacheImages();
 
-        setFilePrefix(prefix);
+        setFilePrefix(currentPrefix);
 
         const initFilename = `${filePrefix()}_${productType()}_idx0`;
-        const initImgPath = `/${plotsPath()}/${initFilename}${imgExt}`;
-        const initJsonPath = `/${plotsPath()}/${initFilename}.json`;
-        console.log(initJsonPath);
+        // const initImgPath = `/${plotsPath()}/${initFilename}.${imgExt}`;
+        // const initJsonPath = `/${plotsPath()}/${initFilename}.json`;
+        // // console.log(initJsonPath);
 
-        const initResponse = await fetch(initJsonPath);
-        const data = await initResponse.json();
+        // const initResponse = await fetch(initJsonPath);
+        // const data = await initResponse.json();
 
-        setOverlayData(data);
-        generateProductCodes();
+        // setOverlayData(data);
 
-        // checkUpdates(); // Initial check
-        setInterval(checkUpdates, 10000); // Check every 2 minutes (120000 ms)
+        await getJson(initFilename, false);
+        const initImgUrl = await preloadImage(initFilename);
+        const data = overlayData();
+        // const initJsonPath = initFilename
+
+        await generateProductCodes();
 
         const mapboxAccessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
         mapboxgl.accessToken = mapboxAccessToken;
@@ -702,24 +700,18 @@ const App = () => {
             zoom: 7.8,
             center: mapOrigin,
             accessToken: mapboxAccessToken,
-            // style:'mapbox://styles/mapbox/outdoors-v11'
         });
 
         mapRef.current.on('load', () => {
             mapRef.current.addSource('radar', {
                 type: 'image',
-                url: initImgPath,
+                url: initImgUrl,
                 coordinates: [
                     data.bounding_box_lon_lat.nw,
                     data.bounding_box_lon_lat.ne,
                     data.bounding_box_lon_lat.se,
                     data.bounding_box_lon_lat.sw,
-                    // testCoords.nw,
-                    // testCoords.ne,
-                    // testCoords.se,
-                    // testCoords.sw,
                 ],
-                // tileSize: 256,  // "unknown property" apparently
             });
 
             mapRef.current.addLayer({
@@ -731,15 +723,29 @@ const App = () => {
                     'raster-fade-duration': 0,
                 },
             });
+            console.log('setIsOverlayLoaded(true)');
             setIsOverlayLoaded(true);
-            console.log(`All ${productType()} images cached.`);
         });
 
-        mapRef.current.on('mousemove', e => {
+        mouseMoveListener = mapRef.current.on('mousemove', e => {
             setMoveEvent(e);
         });
 
-        setTimeIndex(filePrefixes.length - 1);
+        // console.log('setIsUpToDate(true)');
+        setIsUpToDate(true);
+        // setIsCaching(false);
+        // bulkCacheJson();
+        updateInterval = setInterval(checkUpdates, 10000); // Check every 2 minutes (120000 ms)
+    });
+
+    onCleanup(() => {
+        clearInterval(updateInterval); // Clear the interval on component unmount
+        if (mapRef.current) {
+            mapRef.current.off('mousemove', mouseMoveListener);
+        }
+        clearInterval(tiltAnimationInterval);
+        clearInterval(forwardAnimationInterval);
+        clearInterval(reverseAnimationInterval);
     });
 
     const getCoordinates = data => [
@@ -747,10 +753,6 @@ const App = () => {
         data.bounding_box_lon_lat.ne,
         data.bounding_box_lon_lat.se,
         data.bounding_box_lon_lat.sw,
-        // testCoords.nw,
-        // testCoords.ne,
-        // testCoords.se,
-        // testCoords.sw,
     ];
 
     const updateOverlay = () => {
@@ -758,32 +760,10 @@ const App = () => {
         if (!ensureProduct()) return false;
 
         const fileKey = `${filePrefix()}_${productType()}_idx${tiltIndex()}`;
-        const imageURL = `/${plotsPath()}/${fileKey}.png`;
-
-        if (imageCache[fileKey]) {
-            console.log('DEBUG: Updating overlay with cached image:', fileKey);
-            mapRef.current.getSource('radar').updateImage({
-                url: imageCache[fileKey],
-            });
-        } else {
-            try {
-                console.log(
-                    'DEBUG: Updating overlay with new image:',
-                    imageURL
-                );
-                preloadImage(imageURL).then(dataURL => {
-                    // imageCache[fileKey] = dataURL;
-                    mapRef.current.getSource('radar').updateImage({
-                        url: dataURL,
-                    });
-                });
-            } catch (error) {
-                console.error('Image preloading failed:', error);
-            }
-        }
+        const imageURL = `${plotsPath()}/${fileKey}`;
 
         if (jsonDataCache[fileKey]) {
-            console.log('DEBUG: Getting cached json:', `${fileKey}.json `);
+            console.log('DEBUG: Getting cached json data:', `${fileKey}.json `);
             const data = jsonDataCache[`${fileKey}`];
 
             if (data) {
@@ -797,43 +777,27 @@ const App = () => {
                 );
             }
         } else {
-            console.log('DEBUG: Getting new json:', `${fileKey}.json `);
-            fetch(`/${plotsPath()}/${fileKey}.json`)
-                .then(response => response.json())
-                .then(data => {
-                    setOverlayData(data);
-                    jsonDataCache[fileKey] = data;
-
-                    if (data) {
-                        mapRef.current
-                            .getSource('radar')
-                            .setCoordinates(getCoordinates(data));
-                    } else {
-                        console.error(
-                            `Invalid image coordinates in ${fileKey}.json`
-                        );
-                    }
-                });
+            console.log('DEBUG: Getting new json data:', `${fileKey}.json `);
+            getJson(fileKey);
         }
-    };
 
-    const handleIsCaching = async () => {
-        setIsCaching(true);
-
-        let i = 0;
-        let cacheInterval;
-        cacheInterval = setInterval(() => {
-            i++;
-            if (i >= 10 || !isCaching()) {
-                updateOverlay();
-                setIsCaching(false);
-                setLoadedAnyway(true);
-                clearInterval(cacheInterval);
+        if (imageCache[fileKey]) {
+            console.log('DEBUG: Getting cached overlay:', fileKey);
+            mapRef.current.getSource('radar').updateImage({
+                url: imageCache[fileKey],
+            });
+        } else {
+            try {
+                console.log('DEBUG: Getting new overlay:', imageURL);
+                preloadImage(imageURL).then(dataURL => {
+                    mapRef.current.getSource('radar').updateImage({
+                        url: dataURL,
+                    });
+                });
+            } catch (error) {
+                console.error('Image preloading failed:', error);
             }
-            console.log(i);
-        }, 1000);
-
-        return Promise.all(await cacheAllImages());
+        }
     };
 
     createEffect(() => {
@@ -862,69 +826,58 @@ const App = () => {
     createRenderEffect(async () => {
         if (
             isOverlayLoaded() &&
-            // level() == '2' &&
-            // !productCode() &&
+            !isCaching() &&
+            level() == '2' &&
             productType() == 'reflectivity'
         ) {
+            if (isInitialRun) {
+                isInitialRun = false;
+                return; // Skip the first run
+            }
+
             if (!ensureProduct()) return false;
+
             console.log('DEBUG: Inside level 2 createEffect...');
-            const newFilePrefixes = await generateProductFilePrefixes();
-            setFilePrefix(newFilePrefixes[newFilePrefixes.length - 1]);
-            const currentFile = filesData()[filePrefix()];
+
+            const allData = allFilesData();
+            const currentProduct = productType();
+            const currentProductData = allData[currentProduct];
+            const productFilePrefixes = Object.keys(currentProductData);
+            // console.log('productFilePrefixes:', productFilePrefixes);
+
+            const latestPrefix =
+                productFilePrefixes[productFilePrefixes.length - 1];
+
+            setFilePrefix(latestPrefix);
+
+            const currentFile = currentProductData[latestPrefix];
             setMaxTiltIndex(currentFile.sweeps - 1);
 
-            // await useDebounceTimeIndex(setTimeIndex(timeFilePrefixes().length - 1))
-            setTimeIndex(timeFilePrefixes().length - 1);
+            await useDebounceTimeIndex(
+                setTimeIndex(
+                    allPrefixesByCode()[productType()][productCode()].length - 1
+                )
+            );
 
             updateOverlay();
-            // debouncedUpdateOverlay();
-            // `debouncedUpdateOverlay() level 2 productType() ${productType()} createEffect`
         }
     });
 
     // LEVEL 3A
     createRenderEffect(async () => {
-        // if (isOverlayLoaded() && level() == '3' && productType()) {
         if (level() == '3' && productType() != 'reflectivity') {
-            // if (!ensureProduct()) return false;
-            console.log('DEBUG: Inside level 3A createEffect...');
+            console.log('DEBUG: Inside level 3 createEffect...');
             setCodeOptions(allProductCodes()[productType()]);
         }
     });
 
-    // LEVEL 3B
-    createRenderEffect(async () => {
-        if (
-            level() == '3' &&
-            productType() != 'reflectivity' &&
-            productCode()
-        ) {
-            // if (!ensureProduct()) return false;
-            console.log('DEBUG: Inside level 3B createEffect...');
-            const newFilePrefixes = await generateProductFilePrefixes();
-            setFilePrefix(newFilePrefixes[newFilePrefixes.length - 1]);
-            setTiltIndex(0);
-            useDebounceTimeIndex(setTimeIndex(newFilePrefixes.length - 1));
-
-            if (!cachedProducts[productType()][productCode()]) {
-                await handleIsCaching();
-                // setIsCaching(true);
-                // await Promise.allSettled(await cacheAllImages());
-            }
-
-            if (isOverlayLoaded() && !loadedAnyway()) {
-                console.log(
-                    'DEBUG: Inside level 3B createEffect isOverlayLoaded()...'
-                );
-                updateOverlay();
-                // debouncedUpdateOverlay();
-                // `debouncedUpdateOverlay() level 3 productCode() ${productCode()} createEffect`
-            }
-            // setIsCaching(false);
-            setIsCaching(false);
-            setLoadedAnyway(false);
-        }
-    });
+    const handleTimeIndex = () => {
+        useDebounceTimeIndex(
+            setTimeIndex(
+                allPrefixesByCode()[productType()][productCode()].length - 1
+            )
+        );
+    };
 
     // TILT SLIDERS LISTENER
     createEffect(() => {
@@ -936,24 +889,17 @@ const App = () => {
             productType() == 'reflectivity' &&
             tiltSlider
         ) {
-            tiltSlider.addEventListener('input', async e => {
+            const handler = async e => {
                 pauseAllAnimations();
-
-                console.log(
-                    'DEBUG:: inside level TWO (2) tiltSlider addEventListener'
-                );
-
-                // setTiltIndex(parseInt(e.target.value));
-                // useDebounce(tiltIndex(parseInt(e.target.value)), 250)
-                // updateOverlay()
-                // useDebounceTiltIndex((() => (setTiltIndex(parseInt(e.target.value)), updateOverlay()))(), 1000);
-
                 await useDebounceTiltIndex(
                     setTiltIndex(parseInt(e.target.value))
                 );
                 updateOverlay();
-                // debouncedUpdateOverlaySlider();
-                // 'debouncedUpdateOverlay() tiltSlider createEffect'
+            };
+            tiltSlider.addEventListener('input', handler);
+
+            onCleanup(() => {
+                tiltSlider.removeEventListener('input', handler);
             });
         }
     });
@@ -961,13 +907,8 @@ const App = () => {
     // TILT SLIDERS ELEMENTS
     createEffect(() => {
         const tiltSlider = document.getElementById('tilt-slider');
-        if (
-            isOverlayLoaded() &&
-            level() == '2' &&
-            // productType() == 'reflectivity' &&
-            tiltSlider
-        ) {
-            // if (!ensureProduct()) return false;
+
+        if (isOverlayLoaded() && level() == '2' && tiltSlider) {
             console.log('DEBUG:: inside level TWO (2) tiltSlider create ticks');
 
             const tiltSliderTicks =
@@ -990,18 +931,17 @@ const App = () => {
         const timeSlider = document.getElementById('time-slider');
 
         if (isOverlayLoaded() && timeSlider) {
-            timeSlider.addEventListener('input', async e => {
+            const handler = async e => {
                 console.log('DEBUG:: inside timeSlider addEventListener');
                 pauseAllAnimations();
                 const index = parseInt(e.target.value);
                 await useDebounceTimeIndex(setTimeIndex(index));
-                // setTimeIndex(index);
-
                 setupOverlay();
-                // debouncedSetupOverlaySlider();
-                // debouncedSetupOverlay(
-                //     // 'debouncedSetupOverlay() timeSlider createEffect'
-                // );
+            };
+            timeSlider.addEventListener('input', handler);
+
+            onCleanup(() => {
+                timeSlider.removeEventListener('input', handler);
             });
         }
     });
@@ -1012,17 +952,23 @@ const App = () => {
         const timeSliderTicks = document.getElementById('time-slider-ticks');
 
         if (
-            isUpToDate() &&
             isOverlayLoaded() &&
             timeSlider &&
-            timeSliderTicks
+            timeSliderTicks //&&
+            // activePrefixes()
         ) {
+            if (!ensureProduct()) return false;
             console.log('DEBUG:: inside timeSlider create ticks');
 
-            timeSlider.max = timeFilePrefixes().length - 1; //.toString();
+            const currentPrefixes =
+                allPrefixesByCode()[productType()][productCode()];
+
+            // console.log('currentPrefixes:', currentPrefixes);
+
+            timeSlider.max = currentPrefixes.length - 1; //.toString();
             timeSliderTicks.innerHTML = '';
 
-            timeFilePrefixes().forEach((pfx, i) => {
+            currentPrefixes.forEach((pfx, i) => {
                 const tickContainer = document.createElement('code');
                 tickContainer.id = 'time-slider-tick-container';
 
@@ -1039,9 +985,8 @@ const App = () => {
                 const displayTime = `${hour}:${minute}`;
                 tickTime.textContent = displayTime;
 
-                if (i != timeSlider.max) {
-                    const nextSplitPrefix =
-                        timeFilePrefixes()[i + 1].split('_');
+                if (i < timeSlider.max) {
+                    const nextSplitPrefix = currentPrefixes[i + 1].split('_');
                     const nextDatePart = nextSplitPrefix[0].slice(4);
                     const nextTimePart = nextSplitPrefix[1];
                     const nextHour = parseInt(nextTimePart.substring(0, 2));
@@ -1121,6 +1066,8 @@ const App = () => {
                                 setProductCode={setProductCode}
                                 timeAnimationSpeed={timeAnimationSpeed}
                                 setTimeAnimationSpeed={setTimeAnimationSpeed}
+                                productCode={productCode}
+                                L2CODE={L2CODE}
                             ></TypeSelect>
                         )}
 
@@ -1133,6 +1080,14 @@ const App = () => {
                                     setProductCode={setProductCode}
                                     pauseAllAnimations={pauseAllAnimations}
                                     productType={productType}
+                                    L2CODE={L2CODE}
+                                    useDebounceTimeIndex={useDebounceTimeIndex}
+                                    setTimeIndex={setTimeIndex}
+                                    allPrefixesByCode={allPrefixesByCode}
+                                    isOverlayLoaded={isOverlayLoaded}
+                                    setupOverlay={setupOverlay}
+                                    cachedProducts={cachedProducts}
+                                    handleCacheImages={handleCacheImages}
                                 ></CodeSelect>
                             )}
                     </div>
@@ -1155,7 +1110,15 @@ const App = () => {
                                 id="time-slider"
                                 type="range"
                                 min="0"
-                                max={timeFilePrefixes().length - 1}
+                                max={
+                                    allPrefixesByCode()[productType()][
+                                        productCode()
+                                    ]
+                                        ? allPrefixesByCode()[productType()][
+                                              productCode()
+                                          ].length - 1
+                                        : timeIndex()
+                                }
                                 value={timeIndex()}
                             />
                         </div>
@@ -1172,18 +1135,34 @@ const App = () => {
                 <>
                     <div id="loading-container">
                         <code id="loading-text">
-                            {isCaching() ? (
-                                <span>updating</span>
+                            {!isOverlayLoaded() ? (
+                                <span>
+                                    {cacheCount() / cacheTotal() >= 0.575
+                                        ? 'caching'
+                                        : 'loading'}
+                                </span>
                             ) : (
-                                <span>loading</span>
+                                <span>
+                                    {cacheCount() / cacheTotal() >= 0.575
+                                        ? 'caching'
+                                        : 'updating'}
+                                </span>
                             )}
                             <span id="loading-dots">...</span>
                         </code>
+                        <div id="loading-bar">
+                            <div
+                                class="loading-box"
+                                style={{
+                                    width: `${(cacheCount() / cacheTotal()) * 100}%`,
+                                }}
+                            ></div>
+                        </div>
                     </div>
-                    {isCaching() ? (
-                        <div id="updating-overlay"></div>
-                    ) : (
+                    {!isOverlayLoaded() ? (
                         <div id="loading-overlay"></div>
+                    ) : (
+                        <div id="updating-overlay"></div>
                     )}
                 </>
             )}

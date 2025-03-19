@@ -21,7 +21,7 @@ code {
 
 input::-webkit-slider-thumb {
     position: relative;
-    left: initial;
+    /* left: initial; */
     appearance: none;
     background: #2e7068;
     z-index: 100;
@@ -495,6 +495,7 @@ input::-webkit-slider-thumb {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-direction: column;
     transform: translate(37.5vw, 42.5vh);
     background: white;
     border: 1px rgb(243, 243, 243) gray;
@@ -512,6 +513,20 @@ input::-webkit-slider-thumb {
     font-family: monospace;
     clip-path: inset(0 3ch 0 0);
     animation: l 1s steps(4, jump-none) infinite;
+}
+
+#loading-bar {
+    width: 80%;
+    height: 20%;
+    margin-top: 2.5%;
+    display: flex;
+    transition: width 0.25s ease;
+}
+
+.loading-box {
+    height: 100%;
+    background: #2e7068;
+    /* background: blue; */
 }
 
 @keyframes l {

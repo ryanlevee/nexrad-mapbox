@@ -1,21 +1,23 @@
-// TypeSelect.jsx
-
 const TypeSelect = props => {
-    const { productType, productTypes, setProductType, pauseAllAnimations, setProductCode } =
-        props;
-
-    // const options = [
-    //     { value: 'reflectivity', label: 'reflectivity', level: '2' },
-    //     { value: 'hydrometeor', label: 'hydrometeor', level: '3' },
-    //     { value: 'precipitation', label: 'precipitation', level: '3' },
-    // ];
+    const {
+        productType,
+        productTypes,
+        setProductType,
+        pauseAllAnimations,
+        setProductCode,
+        productCode,
+        L2CODE
+    } = props;
 
     const handleChange = async event => {
-        const level = event.target.value;
-        if (productType() == level) return false;
-        setProductCode(null);
-        setProductType(level);
+        const value = event.target.value;
+        if (productType() == value) return false;
         pauseAllAnimations();
+
+        console.log('productCode():', productCode())
+
+        setProductCode(value == 'reflectivity' ? L2CODE : null);
+        setProductType(value);
     };
 
     return (
@@ -28,7 +30,11 @@ const TypeSelect = props => {
             </button>
             <div class="dropup-content">
                 {productTypes.map(type => (
-                    <div class="dropup-option" onClick={handleChange} value={type.value}>
+                    <div
+                        class="dropup-option"
+                        onClick={handleChange}
+                        value={type.value}
+                    >
                         {type.label}
                     </div>
                 ))}

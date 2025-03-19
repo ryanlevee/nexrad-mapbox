@@ -1,4 +1,3 @@
-// UpdateAlert.jsx
 const UpdateAlert = () => {
     return (
         <pre id="update-alert-container">
