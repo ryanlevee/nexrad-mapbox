@@ -307,14 +307,12 @@ const App = () => {
         setupOverlay();
     };
 
-    const apiEndpointTest = 'https://nexrad-mapbox-backend.onrender.com';
+    const apiEndpoint = 'https://nexrad-mapbox-backend.onrender.com';
+    // const apiEndpoint = 'http://localhost:4000';
 
     const getAllListData = async () => {
-        const response = await fetch(`${apiEndpointTest}/list-all/`, {
+        const response = await fetch(`${apiEndpoint}/list-all/`, {
             method: 'GET',
-            headers: {
-                'ngrok-skip-browser-warning': 'true',
-            },
         });
 
         const allListData = await response.json();
@@ -359,7 +357,7 @@ const App = () => {
     };
 
     const generateProductCodes = async () => {
-        const response = await fetch(`${apiEndpointTest}/code/`, {
+        const response = await fetch(`${apiEndpoint}/code/`, {
             method: 'GET',
         });
 
@@ -388,7 +386,7 @@ const App = () => {
     ////////////////
 
     const getAllListDataInBackground = () => {
-        fetch(`${apiEndpointTest}/list-all/`, {
+        fetch(`${apiEndpoint}/list-all/`, {
             method: 'GET',
         })
             .then(response => response.json())
@@ -404,7 +402,7 @@ const App = () => {
     };
 
     const preloadImage = imageKey => {
-        const apiRoute = `${apiEndpointTest}/data/${level()}/${imageKey}/${imgExt}`;
+        const apiRoute = `${apiEndpoint}/data/${level()}/${imageKey}/${imgExt}`;
 
         return new Promise((resolve, reject) => {
             fetch(apiRoute)
@@ -423,7 +421,7 @@ const App = () => {
 
     const cacheImage = async (imageKey, i) => {
         return new Promise((resolve, reject) => {
-            const apiRoute = `${apiEndpointTest}/data/${level()}/${imageKey}/${imgExt}`;
+            const apiRoute = `${apiEndpoint}/data/${level()}/${imageKey}/${imgExt}`;
 
             fetch(apiRoute, {
                 method: 'GET',
@@ -489,7 +487,7 @@ const App = () => {
     };
 
     const getJson = async (fileKey, addToMap = true) => {
-        const apiRoute = `${apiEndpointTest}/data/${level()}/${fileKey}/json`;
+        const apiRoute = `${apiEndpoint}/data/${level()}/${fileKey}/json`;
         return fetch(apiRoute, {
             method: 'GET',
         })
