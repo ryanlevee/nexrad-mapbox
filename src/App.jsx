@@ -22,9 +22,9 @@ const App = () => {
     const mapOrigin = [-118.8529281616211, 45.690650939941406];
 
     const productTypes = [
-        { value: 'reflectivity', label: 'reflectivity', level: '2' },
-        { value: 'hydrometeor', label: 'hydrometeor', level: '3' },
-        { value: 'precipitation', label: 'precipitation', level: '3' },
+        { value: 'reflectivity', label: 'reflectivity (level 2)', level: '2' },
+        { value: 'hydrometeor', label: 'hydrometeor (level 3)', level: '3' },
+        { value: 'precipitation', label: 'precipitation (level 3)', level: '3' },
     ];
 
     const cachedProducts = (() =>
@@ -376,15 +376,6 @@ const App = () => {
 
     const [isUpToDate, setIsUpToDate] = createSignal(false);
 
-    const cacheUpdatedImages = updates => {
-        Object.entries(updates).forEach(([key, value]) => {
-            if (value) {
-            }
-        });
-    };
-
-    ////////////////
-
     const getAllListDataInBackground = () => {
         fetch(`${apiEndpoint}/list-all/`, {
             method: 'GET',
@@ -398,7 +389,7 @@ const App = () => {
     const checkUpdates = async () => {
         getAllListDataInBackground();
         generateProductCodes();
-        bulkCacheImages();
+        if (!isCaching()) await handleCacheImages();
     };
 
     const preloadImage = imageKey => {
@@ -419,7 +410,7 @@ const App = () => {
         });
     };
 
-    const cacheImage = async (imageKey, i) => {
+    const cacheImage = (imageKey, i) => {
         return new Promise((resolve, reject) => {
             const apiRoute = `${apiEndpoint}/data/${level()}/${imageKey}/${imgExt}`;
 
@@ -451,11 +442,32 @@ const App = () => {
         });
     };
 
+    const cleanOldCache = () => {
+        const cachedImageKeys = Object.keys(imageCache).reduce(
+            (acc, key) => (
+                (acc[key] = key.split('_').slice(0, 3).join('_')), acc
+            ),
+            {}
+        );
+
+        const allPrefixes = Object.values(allPrefixesByCode())
+            .flatMap(pfxObj => Object.values(pfxObj))
+            .flat();
+
+        Object.entries(cachedImageKeys).forEach(([key, value]) => {
+            if (!allPrefixes.includes(value)) {
+                // console.log('deleting from imageCache:', key);
+                delete imageCache[key];
+            }
+        });
+        // console.log('imageCache length AFTER:', Object.keys(imageCache).length);
+    }
+
     const bulkCacheImages = async () => {
+        // console.log('imageCache length BEFORE:', Object.keys(imageCache).length);
         setCacheCount(0);
         let imageTotal = 0;
         const currentProductType = productType();
-        const currentProductCode = productCode();
         const currentFilesData = allFilesData()[currentProductType];
 
         const prefixes = allPrefixesByCode()[currentProductType][productCode()];
@@ -475,14 +487,20 @@ const App = () => {
             }
         });
 
-        cachedProducts[currentProductType][currentProductCode] = true;
+        cachedProducts[currentProductType][productCode()] = true;
 
-        await Promise.all(imagePromises);
+        if (imagePromises.length) {
+            // console.log('updating image cache...');
+            pauseAllAnimations();
+            setIsCaching(true);
+            await Promise.all(imagePromises);
+        }
     };
 
     const handleCacheImages = async () => {
-        setIsCaching(true);
+        // console.log('checking for updates...');
         await bulkCacheImages();
+        cleanOldCache();
         setIsCaching(false);
     };
 
@@ -510,7 +528,6 @@ const App = () => {
             });
     };
 
-    let isInitialRun = true;
     let updateInterval;
     let mouseMoveListener;
 
@@ -617,11 +634,13 @@ const App = () => {
         }
 
         if (imageCache[fileKey]) {
+            // console.log('getting cached image:', fileKey);
             mapRef.current.getSource('radar').updateImage({
                 url: imageCache[fileKey],
             });
         } else {
             try {
+                // console.log('getting new image:', fileKey);
                 preloadImage(imageURL).then(dataURL => {
                     mapRef.current.getSource('radar').updateImage({
                         url: dataURL,
@@ -656,14 +675,6 @@ const App = () => {
             setCodeOptions(allProductCodes()[productType()]);
         }
     });
-
-    const handleTimeIndex = () => {
-        useDebounceTimeIndex(
-            setTimeIndex(
-                allPrefixesByCode()[productType()][productCode()].length - 1
-            )
-        );
-    };
 
     createEffect(() => {
         const tiltSlider = document.getElementById('tilt-slider');
@@ -730,11 +741,7 @@ const App = () => {
         const timeSlider = document.getElementById('time-slider');
         const timeSliderTicks = document.getElementById('time-slider-ticks');
 
-        if (
-            isOverlayLoaded() &&
-            timeSlider &&
-            timeSliderTicks
-        ) {
+        if (isOverlayLoaded() && timeSlider && timeSliderTicks) {
             if (!ensureProduct()) return false;
 
             const currentPrefixes =
@@ -837,6 +844,7 @@ const App = () => {
                                 productType={productType}
                                 productTypes={productTypes}
                                 setProductType={setProductType}
+                                level={level}
                                 pauseAllAnimations={pauseAllAnimations}
                                 setProductCode={setProductCode}
                                 timeAnimationSpeed={timeAnimationSpeed}
@@ -850,6 +858,7 @@ const App = () => {
                                 setTimeIndex={setTimeIndex}
                                 allPrefixesByCode={allPrefixesByCode}
                                 updateOverlay={updateOverlay}
+                                handleCacheImages={handleCacheImages}
                             ></TypeSelect>
                         )}
 

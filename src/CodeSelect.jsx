@@ -23,9 +23,9 @@ const CodeSelect = props => {
         if (event.target.value.count != 0) {
             setProductCode(event.target.value.value);
 
-            if (!cachedProducts[productType()][productCode()]) {
+            // if (!cachedProducts[productType()][productCode()]) {
                 await handleCacheImages();
-            } 
+            // } 
 
             useDebounceTimeIndex(
                 setTimeIndex(

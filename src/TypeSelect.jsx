@@ -3,6 +3,7 @@ const TypeSelect = props => {
         productType,
         productTypes,
         setProductType,
+        level,
         pauseAllAnimations,
         setProductCode,
         productCode,
@@ -14,6 +15,7 @@ const TypeSelect = props => {
         setTimeIndex,
         allPrefixesByCode,
         updateOverlay,
+        handleCacheImages
     } = props;
 
     const handleLevel2 = async () => {
@@ -26,6 +28,8 @@ const TypeSelect = props => {
         setFilePrefix(latestPrefix);
         const currentFile = currentProductData[latestPrefix];
         setMaxTiltIndex(currentFile.sweeps - 1);
+
+        await handleCacheImages();
 
         await useDebounceTimeIndex(
             setTimeIndex(
@@ -43,7 +47,7 @@ const TypeSelect = props => {
         setProductCode(value == 'reflectivity' ? L2CODE : null);
         setProductType(value);
 
-        if (value == 'reflectivity') {
+        if (value == 'reflectivity' && level() == '2') {
             handleLevel2();
         }
     };
