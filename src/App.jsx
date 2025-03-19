@@ -503,6 +503,7 @@ const App = () => {
     };
 
     const getJson = async (fileKey, addToMap = true) => {
+        if (!productCode()) return false;
         const apiRoute = `${apiEndpoint}/data/${level()}/${fileKey}/json`;
         return fetch(apiRoute, {
             method: 'GET',
