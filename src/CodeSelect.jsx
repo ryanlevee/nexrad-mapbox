@@ -25,7 +25,7 @@ const CodeSelect = props => {
 
             if (!cachedProducts[productType()][productCode()]) {
                 await handleCacheImages();
-            }
+            } 
 
             useDebounceTimeIndex(
                 setTimeIndex(

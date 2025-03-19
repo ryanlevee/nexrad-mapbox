@@ -321,20 +321,23 @@ const App = () => {
 
     // const apiEndpoint = 'https://abcdef123.execute-api.us-east-1.amazonaws.com/prod/check-updates'; // example
     // const apiEndpoint = `${listsPath}/updated_data.json`;
-    const apiEndpointTest = 'http://localhost:4000';
+    // const apiEndpointTest = 'http://localhost:8080';
+    const apiEndpointTest = 'https://b48d-2603-8000-2af0-94b0-c883-ffaa-97d0-8668.ngrok-free.app';
 
     const getAllListData = async () => {
         const response = await fetch(`${apiEndpointTest}/list-all/`, {
             method: 'GET',
-            // headers: {
-            //     'Content-Type': 'application/json',
-            // },
+            headers: {
+                'ngrok-skip-browser-warning': 'true', // Or try '69420'
+                // 'Content-Type': 'application/json', // Add this back if your API expects JSON
+            },
         });
+        console.log(response)
         const allListData = await response.json();
         if (!truthy(allListData)) return false; // needs to throw error
         return allListData;
     };
-
+    
     const generateAllPrefixesByCode = allListData => {
         let processedListData = {};
         let prefixesByCode = {};
@@ -440,14 +443,28 @@ const App = () => {
         return true;
     };
 
+    const getAllListDataInBackground = () => {
+        fetch(`${apiEndpointTest}/list-all/`, {
+            method: 'GET',
+        })
+            .then(response => response.json())
+            .then(data => {
+                generateAllPrefixesByCode(data);
+            });
+    };
+
     const checkUpdates = async () => {
         console.log('Checking for updates...');
 
-        const newListData = await getAllListData()
-        generateProductCodes()
-        generateAllPrefixesByCode(newListData)
+        // const consistentIndex = Object.keys(
+        //     allFilesData()[productType()]
+        // ).indexOf(filePrefix());
 
-        console.log('updates checked')
+        getAllListDataInBackground();
+        generateProductCodes();
+        bulkCacheImages();
+
+        // console.log('newListData:', newListData)
 
         // console.log(prefixesByCode)
 
@@ -575,7 +592,7 @@ const App = () => {
         const prefixes = allPrefixesByCode()[currentProductType][productCode()];
         const imagePromises = [];
 
-        console.log('prefixes:', prefixes);
+        // console.log('prefixes:', prefixes);
 
         let i = 0;
         prefixes.forEach(prefix => {
@@ -594,6 +611,7 @@ const App = () => {
         cachedProducts[currentProductType][currentProductCode] = true;
 
         await Promise.all(imagePromises);
+
         console.log(
             `All ${currentProductType}:${currentProductCode} images cached.`
         );
@@ -822,46 +840,56 @@ const App = () => {
         setPlotsPath(`${plotsPathPrefix}${level()}`);
     });
 
-    // LEVEL 2
-    createRenderEffect(async () => {
-        if (
-            isOverlayLoaded() &&
-            !isCaching() &&
-            level() == '2' &&
-            productType() == 'reflectivity'
-        ) {
-            if (isInitialRun) {
-                isInitialRun = false;
-                return; // Skip the first run
-            }
+    // // LEVEL 2
+    // createRenderEffect(async () => {
+    //     if (
+    //         isOverlayLoaded() &&
+    //         // !isCaching() &&
+    //         level() == '2' &&
+    //         productType() == 'reflectivity'
+    //     ) {
+    //         if (isInitialRun) {
+    //             isInitialRun = false;
+    //             return; // Skip the first run
+    //         }
 
-            if (!ensureProduct()) return false;
+    //         if (!ensureProduct()) return false;
 
-            console.log('DEBUG: Inside level 2 createEffect...');
+    //         console.log('DEBUG: Inside level 2 createEffect...');
 
-            const allData = allFilesData();
-            const currentProduct = productType();
-            const currentProductData = allData[currentProduct];
-            const productFilePrefixes = Object.keys(currentProductData);
-            // console.log('productFilePrefixes:', productFilePrefixes);
+    //         const allData = allFilesData();
+    //         const currentProduct = productType();
+    //         const currentProductData = allData[currentProduct];
+    //         const productFilePrefixes = Object.keys(currentProductData);
+    //         // console.log('productFilePrefixes:', productFilePrefixes);
 
-            const latestPrefix =
-                productFilePrefixes[productFilePrefixes.length - 1];
+    //         const latestPrefix =
+    //             productFilePrefixes[productFilePrefixes.length - 1];
 
-            setFilePrefix(latestPrefix);
+    //         setFilePrefix(latestPrefix);
 
-            const currentFile = currentProductData[latestPrefix];
-            setMaxTiltIndex(currentFile.sweeps - 1);
+    //         const currentFile = currentProductData[latestPrefix];
 
-            await useDebounceTimeIndex(
-                setTimeIndex(
-                    allPrefixesByCode()[productType()][productCode()].length - 1
-                )
-            );
+    //         // setMaxTiltIndex(
+    //         //     allFilesData()[productType()][
+    //         //         Object.keys(allFilesData()[productType()])[
+    //         //             Object.keys(allFilesData()[productType()]).length - 1
+    //         //         ]
+    //         //     ].sweeps - 1
+    //         // );
+    //         // console.log('currentFile:', currentFile);
 
-            updateOverlay();
-        }
-    });
+    //         setMaxTiltIndex(currentFile.sweeps - 1);
+
+    //         await useDebounceTimeIndex(
+    //             setTimeIndex(
+    //                 allPrefixesByCode()[productType()][productCode()].length - 1
+    //             )
+    //         );
+
+    //         updateOverlay();
+    //     }
+    // });
 
     // LEVEL 3A
     createRenderEffect(async () => {
@@ -1068,6 +1096,13 @@ const App = () => {
                                 setTimeAnimationSpeed={setTimeAnimationSpeed}
                                 productCode={productCode}
                                 L2CODE={L2CODE}
+                                allFilesData={allFilesData}
+                                setFilePrefix={setFilePrefix}
+                                setMaxTiltIndex={setMaxTiltIndex}
+                                useDebounceTimeIndex={useDebounceTimeIndex}
+                                setTimeIndex={setTimeIndex}
+                                allPrefixesByCode={allPrefixesByCode}
+                                updateOverlay={updateOverlay}
                             ></TypeSelect>
                         )}
 
@@ -1120,6 +1155,7 @@ const App = () => {
                                         : timeIndex()
                                 }
                                 value={timeIndex()}
+                                disable={level() == '3' && !productCode()}
                             />
                         </div>
                         <div id="time-slider-ticks"></div>
