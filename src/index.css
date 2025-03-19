@@ -21,7 +21,6 @@ code {
 
 input::-webkit-slider-thumb {
     position: relative;
-    /* left: initial; */
     appearance: none;
     background: #2e7068;
     z-index: 100;
@@ -167,7 +166,6 @@ input::-webkit-slider-thumb {
     height: 2.75vh;
     border-right: 3px dashed red;
 
-    /* background: #6c1f1f; */
     z-index: 1;
 }
 
@@ -182,7 +180,6 @@ input::-webkit-slider-thumb {
     position: absolute;
     display: flex;
     flex-direction: column;
-    /* height: 10vh; */
     top: 42.5vh;
     left: 0.75vw;
     z-index: 2;
@@ -198,7 +195,6 @@ input::-webkit-slider-thumb {
 }
 
 .tilt-btn {
-    /* outline: 1px solid white!important; */
     width: 50%;
     height: 3vh;
 }
@@ -220,7 +216,6 @@ input::-webkit-slider-thumb {
 #tilt-degrees-display {
     text-align: center;
     width: 100%;
-    /* height: 100%; */
 }
 
 #control-tilt-row-speed button {
@@ -294,7 +289,6 @@ input::-webkit-slider-thumb {
 #code-select-container {
     display: flex;
     justify-content: start;
-    /* height: 6vh; */
 }
 
 #type-select-container {
@@ -468,6 +462,7 @@ input::-webkit-slider-thumb {
 #update-alert-text {
     font-size: 1.25rem;
 }
+
 #loading-overlay,
 #updating-overlay {
     position: absolute;
@@ -526,7 +521,6 @@ input::-webkit-slider-thumb {
 .loading-box {
     height: 100%;
     background: #2e7068;
-    /* background: blue; */
 }
 
 @keyframes l {

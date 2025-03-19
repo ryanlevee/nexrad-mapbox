@@ -21,24 +21,10 @@ const TypeSelect = props => {
         const currentProduct = productType();
         const currentProductData = allData[currentProduct];
         const productFilePrefixes = Object.keys(currentProductData);
-        // console.log('productFilePrefixes:', productFilePrefixes);
-
         const latestPrefix =
             productFilePrefixes[productFilePrefixes.length - 1];
-
         setFilePrefix(latestPrefix);
-
         const currentFile = currentProductData[latestPrefix];
-
-        // setMaxTiltIndex(
-        //     allFilesData()[productType()][
-        //         Object.keys(allFilesData()[productType()])[
-        //             Object.keys(allFilesData()[productType()]).length - 1
-        //         ]
-        //     ].sweeps - 1
-        // );
-        // console.log('currentFile:', currentFile);
-
         setMaxTiltIndex(currentFile.sweeps - 1);
 
         await useDebounceTimeIndex(
@@ -54,9 +40,6 @@ const TypeSelect = props => {
         const value = event.target.value;
         if (productType() == value) return false;
         pauseAllAnimations();
-
-        console.log('productCode():', productCode());
-
         setProductCode(value == 'reflectivity' ? L2CODE : null);
         setProductType(value);
 

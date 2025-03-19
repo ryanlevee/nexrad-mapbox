@@ -1,5 +1,3 @@
-// ControlBar.jsx
-
 import { createEffect } from 'solid-js';
 
 const ControlBar = props => {
@@ -27,7 +25,9 @@ const ControlBar = props => {
         const playForwardBtn = document.querySelector('#play-forward-btn');
         const playReverseBtn = document.querySelector('#play-reverse-btn');
         playForwardBtn.className = isTimePlaying() ? 'playing' : 'not-playing';
-        playReverseBtn.className = isTimePlayingReverse() ? 'playing' : 'not-playing';
+        playReverseBtn.className = isTimePlayingReverse()
+            ? 'playing'
+            : 'not-playing';
     });
 
     return (
