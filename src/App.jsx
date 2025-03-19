@@ -920,7 +920,7 @@ const App = () => {
                     </div>
 
                     <img
-                        src={`/colorbars/${productType()}_colorbar.png`}
+                        src={`/assets/colorbars/${productType()}_colorbar.png`}
                         id="colorbar"
                     />
                 </>
