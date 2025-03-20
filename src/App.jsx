@@ -103,6 +103,7 @@ const App = () => {
     const useDebounceTimeAnimation = useDebounce(timeIndex, 7);
 
     const setupOverlay = () => {
+        if (!productCode()) return false
         const currentProductPrefixes =
             allPrefixesByCode()[productType()][productCode()];
         const newFilePrefix = currentProductPrefixes[timeIndex()];
