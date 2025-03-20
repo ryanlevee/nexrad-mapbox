@@ -4,7 +4,7 @@ const ResetButton = props => {
     const options = {
         center: mapOrigin,
         pitch: 0,
-        zoom: 7.8,
+        zoom: 7.4,
         bearing: 0,
     };
 

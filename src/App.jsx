@@ -422,7 +422,6 @@ const App = () => {
                     reader.onloadend = () => {
                         imageCache[imageKey] = reader.result;
                         setCacheCount(i);
-
                         resolve(true);
                     };
                     reader.onerror = error => {
@@ -469,7 +468,6 @@ const App = () => {
         setCacheCount(0);
         let imageTotal = 0;
         const currentFilesData = allFilesData()[productType()];
-
         const prefixes = allPrefixesByCode()[productType()][productCode()];
         const imagePromises = [];
 
@@ -538,13 +536,11 @@ const App = () => {
         const allListData = await getAllListData();
         const allPrefixes = generateAllPrefixesByCode(allListData);
         const currentPrefixes = allPrefixes[productType()][productCode()];
-
         const currentPrefix = currentPrefixes[currentPrefixes.length - 1];
         setMaxTiltIndex(allListData[productType()][currentPrefix].sweeps - 1);
         setTimeIndex(currentPrefixes.length - 1);
 
         await handleCacheImages();
-
         setFilePrefix(currentPrefix);
 
         const initFilename = `${filePrefix()}_${productType()}_idx0`;
@@ -560,7 +556,7 @@ const App = () => {
 
         mapRef.current = new mapboxgl.Map({
             container: 'map',
-            zoom: 7.8,
+            zoom: 7.4,
             center: mapOrigin,
             accessToken: mapboxAccessToken,
         });
