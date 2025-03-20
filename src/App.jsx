@@ -765,9 +765,10 @@ const App = () => {
                 const datePart = splitPrefix[0].slice(4);
                 const timePart = splitPrefix[1];
 
-                const hour = parseInt(timePart.substring(0, 2)) - 7;
+                const hour = parseInt(timePart.substring(0, 2));
+                const displayHour = hour >= 7 ? hour - 7 : 24 - 7 + hour
                 const minute = timePart.substring(2, 4);
-                const displayTime = `${hour}:${minute}`;
+                const displayTime = `${displayHour}:${minute}`;
                 tickTime.textContent = displayTime;
 
                 if (i < timeSlider.max) {
@@ -777,7 +778,7 @@ const App = () => {
                     const nextHour = parseInt(nextTimePart.substring(0, 2));
 
                     if (
-                        hour >= 23 &&
+                        displayHour >= 23 &&
                         nextHour >= 0 &&
                         nextDatePart > datePart
                     ) {
