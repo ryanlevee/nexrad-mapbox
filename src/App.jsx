@@ -910,7 +910,7 @@ const App = () => {
                                         : timeIndex()
                                 }
                                 value={timeIndex()}
-                                disable={level() == '3' && !productCode()}
+                                disabled={level() == '3' && !productCode()}
                             />
                         </div>
                         <div id="time-slider-ticks"></div>
