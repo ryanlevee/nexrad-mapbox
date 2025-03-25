@@ -1,4 +1,3 @@
-// MouseLatLng.jsx
 import { Show } from 'solid-js';
 
 const MouseLatLng = props => {
