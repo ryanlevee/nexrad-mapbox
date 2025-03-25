@@ -356,13 +356,13 @@ input::-webkit-slider-thumb {
     display: table;
     position: absolute;
     bottom: 7vh;
-    right: 0;
+    right: 0.5vw;
     margin: 0px auto;
     word-wrap: anywhere;
     white-space: pre-wrap;
     border: none;
     border-radius: 3;
-    font-size: 14px;
+    font-size: 0.7vw;
     text-align: center;
     color: #222;
     background: transparent;
