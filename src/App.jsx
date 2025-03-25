@@ -64,7 +64,6 @@ const App = () => {
     const [maxTiltIndex, setMaxTiltIndex] = createSignal(null);
 
     const [moveEvent, setMoveEvent] = createSignal(null);
-    const [loadingBar, setLoadingBar] = createSignal([]);
 
     const [isTiltPlaying, setIsTiltPlaying] = createSignal(false);
     const [isTimePlaying, setIsTimePlaying] = createSignal(false);
@@ -103,7 +102,7 @@ const App = () => {
     const useDebounceTimeAnimation = useDebounce(timeIndex, 7);
 
     const setupOverlay = () => {
-        if (!productCode()) return false;
+        if (!productCode()) return false
         const currentProductPrefixes =
             allPrefixesByCode()[productType()][productCode()];
         const newFilePrefix = currentProductPrefixes[timeIndex()];
@@ -422,7 +421,7 @@ const App = () => {
                     const reader = new FileReader();
                     reader.onloadend = () => {
                         imageCache[imageKey] = reader.result;
-                        if (i >= cacheCount()) setCacheCount(i);
+                        setCacheCount(i);
                         resolve(true);
                     };
                     reader.onerror = error => {
@@ -472,13 +471,6 @@ const App = () => {
         const prefixes = allPrefixesByCode()[productType()][productCode()];
         const imagePromises = [];
 
-        const cTotal =
-            Object.values(currentFilesData).reduce(
-                (acc, { sweeps }) => acc + sweeps,
-                0
-            ) - 1;
-        setCacheTotal(cTotal);
-
         let i = 0;
         prefixes.forEach(prefix => {
             const maxIdx = currentFilesData[prefix].sweeps - 1;
@@ -487,8 +479,8 @@ const App = () => {
                 const imageKey = `${prefix}_${productType()}_idx${iTilt}`;
                 if (!imageCache[imageKey]) {
                     imagePromises.push(cacheImage(imageKey, i++));
-                    setLoadingBar([...loadingBar(), imageTotal]);
                 }
+                setCacheTotal(imageTotal++);
             }
         });
 
@@ -537,6 +529,7 @@ const App = () => {
                     .setCoordinates(getCoordinates(overlayData()));
             });
     };
+
 
     onMount(async () => {
         const allListData = await getAllListData();
@@ -768,7 +761,7 @@ const App = () => {
                 const timePart = splitPrefix[1];
 
                 const hour = parseInt(timePart.substring(0, 2));
-                const displayHour = hour >= 7 ? hour - 7 : 24 - 7 + hour;
+                const displayHour = hour >= 7 ? hour - 7 : 24 - 7 + hour
                 const minute = timePart.substring(2, 4);
                 const displayTime = `${displayHour}:${minute}`;
                 tickTime.textContent = displayTime;
