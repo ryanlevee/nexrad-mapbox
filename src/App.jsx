@@ -102,7 +102,7 @@ const App = () => {
     const useDebounceTimeAnimation = useDebounce(timeIndex, 7);
 
     const setupOverlay = () => {
-        if (!productCode()) return false
+        if (!productCode()) return false;
         const currentProductPrefixes =
             allPrefixesByCode()[productType()][productCode()];
         const newFilePrefix = currentProductPrefixes[timeIndex()];
@@ -375,20 +375,27 @@ const App = () => {
 
     const [isUpToDate, setIsUpToDate] = createSignal(false);
 
-    const getAllListDataInBackground = () => {
-        fetch(`${apiEndpoint}/list-all/`, {
-            method: 'GET',
-        })
-            .then(response => response.json())
-            .then(data => {
-                generateAllPrefixesByCode(data);
-            });
-    };
+    // const getAllListDataInBackground = () => {
+    //     fetch(`${apiEndpoint}/list-all/`, {
+    //         method: 'GET',
+    //     })
+    //         .then(response => response.json())
+    //         .then(data => {
+    //             generateAllPrefixesByCode(data);
+    //         });
+    // };
 
     const checkUpdates = async () => {
-        getAllListDataInBackground();
+        // getAllListDataInBackground();
+        // generateProductCodes();
+        // if (!isCaching()) await handleCacheImages();
+        if (isCaching()) return false;
+        const data = await getAllListData();
+        if (!data) return false
+        setIsCaching(true);
+        generateAllPrefixesByCode(data)
         generateProductCodes();
-        if (!isCaching()) await handleCacheImages();
+        await handleCacheImages();
     };
 
     const preloadImage = imageKey => {
@@ -529,7 +536,6 @@ const App = () => {
                     .setCoordinates(getCoordinates(overlayData()));
             });
     };
-
 
     onMount(async () => {
         const allListData = await getAllListData();
@@ -761,7 +767,7 @@ const App = () => {
                 const timePart = splitPrefix[1];
 
                 const hour = parseInt(timePart.substring(0, 2));
-                const displayHour = hour >= 7 ? hour - 7 : 24 - 7 + hour
+                const displayHour = hour >= 7 ? hour - 7 : 24 - 7 + hour;
                 const minute = timePart.substring(2, 4);
                 const displayTime = `${displayHour}:${minute}`;
                 tickTime.textContent = displayTime;
