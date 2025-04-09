@@ -375,20 +375,7 @@ const App = () => {
 
     const [isUpToDate, setIsUpToDate] = createSignal(false);
 
-    // const getAllListDataInBackground = () => {
-    //     fetch(`${apiEndpoint}/list-all/`, {
-    //         method: 'GET',
-    //     })
-    //         .then(response => response.json())
-    //         .then(data => {
-    //             generateAllPrefixesByCode(data);
-    //         });
-    // };
-
     const checkUpdates = async () => {
-        // getAllListDataInBackground();
-        // generateProductCodes();
-        // if (!isCaching()) await handleCacheImages();
         if (isCaching()) return false;
         const data = await getAllListData();
         if (!data) return false
