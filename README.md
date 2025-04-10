@@ -16,7 +16,7 @@ This application fetches processed radar imagery and metadata from a custom back
 
 **NOTE**: Current implementation displays data from March 21, 2025 from for the KPDT site. 
 
-![Application Screenshot/GIF]([LINK_TO_YOUR_SCREENSHOT_OR_GIF])
+![Application Screenshot/GIF]([/src/public/assets/gif/nexrad_mapbox_animation.gif])
 
 ---
 
