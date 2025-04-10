@@ -7,7 +7,6 @@
 
 **Backend Repository:** [**NEXRAD Mapbox backend repository**](https://github.com/ryanlevee/nexrad-mapbox-backend)
 
----
 
 ## Overview
 
@@ -17,7 +16,6 @@ This application fetches processed radar imagery and metadata from a custom back
 
 ![Application Screenshot/GIF](public/assets/gif/nexrad_mapbox_animation.gif)
 
----
 
 ## Key Features
 
@@ -43,7 +41,6 @@ This application fetches processed radar imagery and metadata from a custom back
     * Debounced slider inputs to prevent excessive updates during dragging.
     * Displays relevant color bars corresponding to the selected radar product.
 
----
 
 ## Technology Stack
 
@@ -57,7 +54,6 @@ This application fetches processed radar imagery and metadata from a custom back
 * **Backend:** Custom API hosted on [Render.com](https://render.com/) (Responsible for serving pre-processed NEXRAD data files and lists) - *[Optionally mention backend language/framework if known, e.g., Python/Flask, Node/Express]*
 * **Environment:** Node.js
 
----
 
 ## Technical Highlights & Challenges
 
@@ -100,7 +96,6 @@ This project presented several technical challenges and opportunities to impleme
         * Implemented custom debouncing (`useDebounce`) for slider `input` events to avoid overwhelming the `updateOverlay` function during rapid slider movement.
         * Dynamically generated slider tick marks and labels in `createEffect` based on the `allPrefixesByCode` data structure.
 
----
 
 ## Setup and Local Development
 
@@ -133,7 +128,6 @@ This project presented several technical challenges and opportunities to impleme
 
 5.  Open your browser to `http://localhost:5173` (or the port specified by Vite).
 
----
 
 ## API Backend
 
@@ -147,7 +141,6 @@ This frontend application relies on a companion backend service ([`nexrad-mapbox
     * Retrieve specific PNG images (`/data/{level}/{fileKey}/png`).
     * Retrieve specific JSON metadata files (`/data/{level}/{fileKey}/json`).
 
----
 
 ## Future Enhancements (Ideas)
 
@@ -160,16 +153,12 @@ This frontend application relies on a companion backend service ([`nexrad-mapbox
 * Allow users to select different Mapbox base map styles.
 * Implement user preferences (e.g., default location, preferred product).
 
----
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](https://github.com/ryanlevee/nexrad-mapbox/blob/main/LICENSE) file for details.
 
----
 
 ## Contact
 
 Ryan Levee - [GitHub](https://github.com/ryanlevee) | [LinkedIn](https://www.linkedin.com/in/ryanlevee/) | [Email](mailto:ryanlevee@gmail.com)
-
----
