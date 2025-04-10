@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Live Demo:** [**NEXRAD Mapbox on Netlify**](https://nexradmapbox.netlify.app/)
-* Current live demo displays data from March 21, 2025 for the KPDT site only. Real-time data functionality is working, but turned off for the moment. 
+###### **NOTE**: Current live demo displays data from March 21, 2025 for the KPDT site only. Real-time data functionality is working, but turned off for the moment due to cost. 
 
 **Backend Repository:** [**NEXRAD Mapbox backend repository**](https://github.com/ryanlevee/nexrad-mapbox-backend)
 
