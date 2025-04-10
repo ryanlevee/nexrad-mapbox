@@ -307,7 +307,6 @@ const App = () => {
     };
 
     const apiEndpoint = 'https://nexrad-mapbox-backend.onrender.com';
-    // const apiEndpoint = 'http://localhost:4000';
 
     const getAllListData = async () => {
         const response = await fetch(`${apiEndpoint}/list-all/`, {
@@ -378,9 +377,9 @@ const App = () => {
     const checkUpdates = async () => {
         if (isCaching()) return false;
         const data = await getAllListData();
-        if (!data) return false
+        if (!data) return false;
         setIsCaching(true);
-        generateAllPrefixesByCode(data)
+        generateAllPrefixesByCode(data);
         generateProductCodes();
         await handleCacheImages();
     };

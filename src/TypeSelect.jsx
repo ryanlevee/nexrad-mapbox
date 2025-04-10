@@ -15,7 +15,7 @@ const TypeSelect = props => {
         setTimeIndex,
         allPrefixesByCode,
         updateOverlay,
-        handleCacheImages
+        handleCacheImages,
     } = props;
 
     const handleLevel2 = async () => {
