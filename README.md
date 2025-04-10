@@ -14,9 +14,9 @@ This project is a high-performance, interactive web application designed to visu
 
 This application fetches processed radar imagery and metadata from a custom backend API, displaying it as an overlay on the map. It provides intuitive controls for data selection, time-based animation, and (for specific products) tilt angle adjustments.
 
-**NOTE**: Current implementation displays data from March 21, 2025 from for the KPDT site. 
-
 ![Application Screenshot/GIF](public/assets/gif/nexrad_mapbox_animation.gif)
+
+**NOTE**: Current implementation displays data from March 21, 2025 for the KPDT site only. Real-time data functionality is working, but turned off for the moment. 
 
 ---
 
