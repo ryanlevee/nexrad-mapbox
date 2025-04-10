@@ -1,4 +1,4 @@
-# NEXRAD Weather Radar Viewer with Mapbox
+# NEXRAD Weather Radar Viewer with Mapbox - Frontend
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
