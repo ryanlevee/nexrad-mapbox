@@ -48,7 +48,7 @@ This application fetches processed radar imagery and metadata from a custom back
 * **Mapping Library:** [Mapbox GL JS](https://docs.mapbox.com/mapbox-gl-js/api/)
 * **Programming Language:** JavaScript (ESNext)
 * **Styling:** CSS3
-* **Build Tool:** Vite (presumed based on `import.meta.env`)
+* **Build Tool:** Vite
 * **State Management:** SolidJS Signals (`createSignal`, `createEffect`, etc.)
 * **API Communication:** Native `Workspace` API
 * **Backend:** Flask API with custom middleware hosted on [Render.com](https://render.com/) (Responsible for serving pre-processed NEXRAD data files and lists)
