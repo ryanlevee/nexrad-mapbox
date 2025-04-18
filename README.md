@@ -12,7 +12,7 @@
 
 This project is a high-performance, interactive web application designed to visualize NEXRAD (Next-Generation Radar) weather data on a dynamic map interface powered by Mapbox GL JS. Built with the reactive JavaScript framework SolidJS, it allows users to explore various radar products (like reflectivity, hydrometeor classification, and precipitation) across different timestamps and radar elevation angles (tilts). The focus was on creating a fluid user experience with smooth animations and efficient data handling, showcasing modern frontend development techniques.
 
-This application fetches processed radar imagery and metadata from a custom backend (repo url above) via a REST API, displaying it as an overlay on the map. It provides intuitive controls for data selection, time-based animation, and (for specific products) tilt angle adjustments.
+This application fetches processed radar imagery and metadata from a custom backend (repo url above) via a REST API, displaying it as an overlay on the map. It provides intuitive controls for data selection, time-based animation, and tilt angle adjustments.
 
 ![Application Screenshot/GIF](public/assets/gif/nexrad_mapbox_animation.gif)
 
