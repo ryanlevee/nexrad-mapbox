@@ -12,7 +12,7 @@
 
 This project is a high-performance, interactive web application designed to visualize NEXRAD (Next-Generation Radar) weather data on a dynamic map interface powered by Mapbox GL JS. Built with the reactive JavaScript framework SolidJS, it allows users to explore various radar products (like reflectivity, hydrometeor classification, and precipitation) across different timestamps and radar elevation angles (tilts). The focus was on creating a fluid user experience with smooth animations and efficient data handling, showcasing modern frontend development techniques.
 
-This application fetches processed radar imagery and metadata from a custom backend API, displaying it as an overlay on the map. It provides intuitive controls for data selection, time-based animation, and (for specific products) tilt angle adjustments.
+This application fetches processed radar imagery and metadata from a custom backend (repo url above) via a REST API, displaying it as an overlay on the map. It provides intuitive controls for data selection, time-based animation, and tilt angle adjustments.
 
 ![Application Screenshot/GIF](public/assets/gif/nexrad_mapbox_animation.gif)
 
@@ -47,11 +47,11 @@ This application fetches processed radar imagery and metadata from a custom back
 * **Frontend Framework:** [SolidJS](https://www.solidjs.com/) (Leveraging fine-grained reactivity for performance)
 * **Mapping Library:** [Mapbox GL JS](https://docs.mapbox.com/mapbox-gl-js/api/)
 * **Programming Language:** JavaScript (ESNext)
-* **Styling:** CSS3 (with potential CSS modules or styling libraries if used)
-* **Build Tool:** Vite (presumed based on `import.meta.env`)
+* **Styling:** CSS3
+* **Build Tool:** Vite
 * **State Management:** SolidJS Signals (`createSignal`, `createEffect`, etc.)
 * **API Communication:** Native `Workspace` API
-* **Backend:** Custom API hosted on [Render.com](https://render.com/) (Responsible for serving pre-processed NEXRAD data files and lists) - *[Optionally mention backend language/framework if known, e.g., Python/Flask, Node/Express]*
+* **Backend:** Flask API with custom middleware hosted on [Render.com](https://render.com/) (Responsible for serving pre-processed NEXRAD data files and lists)
 * **Environment:** Node.js
 
 
