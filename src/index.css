@@ -481,21 +481,30 @@ input::-webkit-slider-thumb {
     background: #1e1e1e4a;
 }
 
+#loading-body {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+}
+
 #loading-container {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 25vw;
-    height: 15vh;
+    min-width: max-content;
+    height: calc(10% + 12.5vh);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-direction: column;
-    transform: translate(37.5vw, 42.5vh);
     background: white;
     border: 1px rgb(243, 243, 243) gray;
     z-index: 3;
     border-radius: 25px;
+    padding: 0 2.5%;
+    margin: auto;
+}
+
+#loading-note {
+    margin-bottom: 2vh;
+    min-width: max-content;
 }
 
 #loading-text {
@@ -511,7 +520,7 @@ input::-webkit-slider-thumb {
 }
 
 #loading-bar {
-    width: 80%;
+    width: 92.5%;
     height: 20%;
     margin-top: 2.5%;
     display: flex;

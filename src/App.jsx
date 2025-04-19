@@ -914,8 +914,9 @@ const App = () => {
                 </>
             )}
             {(!isOverlayLoaded() || isCaching()) && (
-                <>
+                <div id="loading-body">
                     <div id="loading-container">
+                        <code id="loading-note">Please be patient. The backend host's free tier occasionally spins down.</code>
                         <code id="loading-text">
                             {!isOverlayLoaded() ? (
                                 <span>
@@ -946,7 +947,7 @@ const App = () => {
                     ) : (
                         <div id="updating-overlay"></div>
                     )}
-                </>
+                </div>
             )}
         </div>
     );
