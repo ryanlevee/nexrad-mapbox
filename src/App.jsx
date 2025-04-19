@@ -728,6 +728,7 @@ const App = () => {
     });
 
     createEffect(() => {
+        // return false;
         const timeSlider = document.getElementById('time-slider');
         const timeSliderTicks = document.getElementById('time-slider-ticks');
 
@@ -916,7 +917,10 @@ const App = () => {
             {(!isOverlayLoaded() || isCaching()) && (
                 <div id="loading-body">
                     <div id="loading-container">
-                        <code id="loading-note">Please be patient. The backend host's free tier occasionally spins down.</code>
+                        <code id="loading-note">
+                            Please be patient. The backend host's free tier
+                            occasionally spins down.
+                        </code>
                         <code id="loading-text">
                             {!isOverlayLoaded() ? (
                                 <span>

@@ -482,12 +482,16 @@ input::-webkit-slider-thumb {
 }
 
 #loading-body {
+    position: absolute;
     width: 100vw;
     height: 100vh;
     display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 #loading-container {
+    position: absolute;
     min-width: max-content;
     height: calc(10% + 12.5vh);
     display: flex;
@@ -499,7 +503,7 @@ input::-webkit-slider-thumb {
     z-index: 3;
     border-radius: 25px;
     padding: 0 2.5%;
-    margin: auto;
+    /* margin: auto; */
 }
 
 #loading-note {
