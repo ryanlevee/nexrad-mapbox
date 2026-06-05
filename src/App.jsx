@@ -656,14 +656,12 @@ const App = () => {
         }
 
         if (imageCache[fileKey]) {
-            // console.log('getting cached image:', fileKey);
             mapRef.current.getSource('radar').updateImage({
                 url: imageCache[fileKey],
             });
         } else {
             try {
-                // console.log('getting new image:', fileKey);
-                preloadImage(imageURL).then(dataURL => {
+                preloadImage(fileKey).then(dataURL => {
                     mapRef.current.getSource('radar').updateImage({
                         url: dataURL,
                     });
