@@ -84,6 +84,30 @@ const App = () => {
         return true;
     }
 
+    function parseTimestamp(prefix) {
+        // THREDDS format: Level2_KPDT_20260604_2005.ar2v
+        const threddsMatch = prefix.match(
+            /^Level2_[A-Z]{4}_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})\.ar2v$/
+        );
+        if (threddsMatch) {
+            return {
+                date: threddsMatch[1] + threddsMatch[2] + threddsMatch[3],
+                hour: parseInt(threddsMatch[4]),
+                minute: threddsMatch[5],
+            };
+        }
+        // Old S3 format: KPDT20250409_123456_V06
+        const s3Match = prefix.match(/^[A-Z]{4}(\d{8})_(\d{2})(\d{2})\d{2}/);
+        if (s3Match) {
+            return {
+                date: s3Match[1],
+                hour: parseInt(s3Match[2]),
+                minute: s3Match[3],
+            };
+        }
+        return null;
+    }
+
     function useDebounce(signalSetter, delay) {
         let timerHandle;
 
@@ -374,10 +398,17 @@ const App = () => {
 
     const [isUpToDate, setIsUpToDate] = createSignal(false);
 
+    let lastListDataJson = '';
+
     const checkUpdates = async () => {
         if (isCaching()) return false;
         const data = await getAllListData();
         if (!data) return false;
+
+        const dataJson = JSON.stringify(data);
+        if (dataJson === lastListDataJson) return false;
+        lastListDataJson = dataJson;
+
         setIsCaching(true);
         generateAllPrefixesByCode(data);
         generateProductCodes();
@@ -525,6 +556,7 @@ const App = () => {
 
     onMount(async () => {
         const allListData = await getAllListData();
+        lastListDataJson = JSON.stringify(allListData);
         const allPrefixes = generateAllPrefixesByCode(allListData);
         const currentPrefixes = allPrefixes[productType()][productCode()];
         const currentPrefix = currentPrefixes[currentPrefixes.length - 1];
@@ -748,32 +780,34 @@ const App = () => {
                 const tickLine = document.createElement('div');
                 tickLine.className = 'tickline';
 
-                const splitPrefix = pfx.split('_');
                 const tickTime = document.createElement('div');
-                const datePart = splitPrefix[0].slice(4);
-                const timePart = splitPrefix[1];
+                const parsed = parseTimestamp(pfx);
 
-                const hour = parseInt(timePart.substring(0, 2));
-                const displayHour = hour >= 7 ? hour - 7 : 24 - 7 + hour;
-                const minute = timePart.substring(2, 4);
-                const displayTime = `${displayHour}:${minute}`;
-                tickTime.textContent = displayTime;
+                if (parsed) {
+                    const displayHour =
+                        parsed.hour >= 7
+                            ? parsed.hour - 7
+                            : 24 - 7 + parsed.hour;
+                    const displayTime = `${displayHour}:${parsed.minute}`;
+                    tickTime.textContent = displayTime;
 
-                if (i < timeSlider.max) {
-                    const nextSplitPrefix = currentPrefixes[i + 1].split('_');
-                    const nextDatePart = nextSplitPrefix[0].slice(4);
-                    const nextTimePart = nextSplitPrefix[1];
-                    const nextHour = parseInt(nextTimePart.substring(0, 2));
-
-                    if (
-                        displayHour >= 23 &&
-                        nextHour >= 0 &&
-                        nextDatePart > datePart
-                    ) {
-                        const dayLine = document.createElement('div');
-                        dayLine.id = 'time-slider-day-line';
-                        tickContainer.appendChild(dayLine);
+                    if (i < timeSlider.max) {
+                        const nextParsed = parseTimestamp(
+                            currentPrefixes[i + 1]
+                        );
+                        if (
+                            nextParsed &&
+                            displayHour >= 23 &&
+                            nextParsed.hour >= 0 &&
+                            nextParsed.date > parsed.date
+                        ) {
+                            const dayLine = document.createElement('div');
+                            dayLine.id = 'time-slider-day-line';
+                            tickContainer.appendChild(dayLine);
+                        }
                     }
+                } else {
+                    tickTime.textContent = '';
                 }
 
                 tickContainer.appendChild(tickLine);
